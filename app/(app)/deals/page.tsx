@@ -3,11 +3,17 @@ import { db } from "@/db/client";
 import { companies } from "@/db/schema/companies";
 import { deals, pipelines, stages } from "@/db/schema/deals";
 import { requireOrgSession } from "@/lib/session";
-import { KanbanBoard } from "./kanban";
+import { DealsView } from "./deals-view";
 
-export default async function DealsPage() {
+export default async function DealsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: "list" | "board" }>;
+}) {
   const session = await requireOrgSession();
   const orgId = session.organizationId;
+  const sp = await searchParams;
+  const view = sp.view === "board" ? "board" : "list";
 
   const pipelineRows = await db()
     .select()
@@ -17,7 +23,7 @@ export default async function DealsPage() {
   const pipeline = pipelineRows[0];
   if (!pipeline) {
     return (
-      <div className="px-8 py-6 text-sm text-muted-foreground">
+      <div className="px-6 py-5 text-[13px] text-text-muted">
         No default pipeline. Run <code>bun run seed</code>.
       </div>
     );
@@ -45,20 +51,16 @@ export default async function DealsPage() {
     .where(eq(deals.organizationId, orgId));
 
   return (
-    <div className="px-8 py-6">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Deals</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {pipeline.name} pipeline · {dealRows.length} deal{dealRows.length === 1 ? "" : "s"} · drag to move
-          </p>
-        </div>
-      </header>
-
-      <KanbanBoard
-        stages={stageRows.map((s) => ({ id: s.id, name: s.name }))}
-        initialDeals={dealRows}
-      />
-    </div>
+    <DealsView
+      pipelineName={pipeline.name}
+      view={view}
+      stages={stageRows.map((s) => ({
+        id: s.id,
+        name: s.name,
+        isWon: s.isWon,
+        isLost: s.isLost,
+      }))}
+      deals={dealRows}
+    />
   );
 }
