@@ -91,6 +91,7 @@ export default async function CockpitPage() {
       : TODAY.getHours() < 18
         ? "Good afternoon"
         : "Good evening";
+  const nowMs = TODAY.getTime();
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -193,7 +194,7 @@ export default async function CockpitPage() {
                   {atRisk.map((d, i) => {
                     const days = Math.max(
                       0,
-                      Math.round((Date.now() - d.stageEnteredAt.getTime()) / 86_400_000),
+                      Math.round((nowMs - d.stageEnteredAt.getTime()) / 86_400_000),
                     );
                     return (
                       <tr

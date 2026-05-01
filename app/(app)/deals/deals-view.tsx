@@ -48,27 +48,26 @@ export function DealsView({
   deals: DealRow[];
 }) {
   const [filter, setFilter] = useState<"all" | "at_risk" | "watch">("all");
+  const [nowMs] = useState(() => Date.now());
   const stageById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
 
-  const enriched = useMemo(
-    () =>
-      deals.map((d) => {
-        const days = Math.max(
-          0,
-          Math.round((Date.now() - d.stageEnteredAt.getTime()) / 86_400_000),
-        );
-        const stage = stageById.get(d.stageId);
-        return {
-          ...d,
-          stageName: stage?.name ?? "Unknown",
-          isWon: stage?.isWon ?? false,
-          isLost: stage?.isLost ?? false,
-          daysInStage: days,
-          score: healthScore(days, d.temperature),
-        };
-      }),
-    [deals, stageById],
-  );
+  const enriched = useMemo(() => {
+    return deals.map((d) => {
+      const days = Math.max(
+        0,
+        Math.round((nowMs - d.stageEnteredAt.getTime()) / 86_400_000),
+      );
+      const stage = stageById.get(d.stageId);
+      return {
+        ...d,
+        stageName: stage?.name ?? "Unknown",
+        isWon: stage?.isWon ?? false,
+        isLost: stage?.isLost ?? false,
+        daysInStage: days,
+        score: healthScore(days, d.temperature),
+      };
+    });
+  }, [deals, stageById, nowMs]);
 
   const filtered = useMemo(() => {
     if (filter === "at_risk")
