@@ -13,7 +13,8 @@
     "db:migrate": "bun run db/migrate.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "seed": "bun run db/seed.ts"
+    "seed": "bun run db/seed.ts",
+    "seed:sample": "bun run db/seed-sample.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
