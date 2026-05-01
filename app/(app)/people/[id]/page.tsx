@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
+import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
 import { companies, people } from "@/db/schema/companies";
 import { signals } from "@/db/schema/signals";
 import { tasks } from "@/db/schema/tasks";
-import { PersonaPill, TemperaturePill, PriorityIndicator } from "@/components/pills";
+import { Avatar, CompanyLogo } from "@/components/avatar-init";
+import { EngagementPill, PersonaPill } from "@/components/pills";
+import { TaskRow, type TaskRowData } from "@/components/task-row";
 import { relativeTime } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
 
@@ -37,89 +40,142 @@ export default async function PersonDetailPage({
     .orderBy(desc(signals.occurredAt))
     .limit(8);
 
-  const openTasks = await db()
-    .select()
+  const personTasks = (await db()
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      reasoning: tasks.reasoning,
+      priority: tasks.priority,
+      type: tasks.type,
+      status: tasks.status,
+      dueDate: tasks.dueDate,
+      companyId: tasks.companyId,
+      companyName: companies.name,
+    })
     .from(tasks)
+    .leftJoin(companies, eq(tasks.companyId, companies.id))
     .where(eq(tasks.personId, id))
     .orderBy(desc(tasks.createdAt))
-    .limit(8);
+    .limit(8)) as TaskRowData[];
 
   return (
-    <div className="px-8 py-6">
-      <Link
-        href="/people"
-        className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-      >
-        ← People
-      </Link>
-      <header className="mt-2">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{person.name}</h1>
-          <PersonaPill value={person.persona} />
-          <TemperaturePill value={person.engagement} />
+    <div className="flex h-full flex-col bg-background">
+      <div className="shrink-0 border-b border-border px-6 pt-3.5">
+        <div className="mb-2.5 flex items-center gap-2 text-[12px] text-text-muted">
+          <Link href="/people" className="flex items-center gap-1 hover:text-text">
+            <ChevronLeft className="h-3 w-3" />
+            People
+          </Link>
+          <span className="text-text-subtle">/</span>
+          <span className="text-text">{person.name}</span>
         </div>
-        <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
-          <span>{person.title ?? "—"}</span>
-          {row.companyName ? (
-            <Link
-              href={`/companies/${person.companyId}`}
-              className="underline-offset-2 hover:underline"
-            >
-              · {row.companyName}
-            </Link>
-          ) : null}
-          {person.email ? <span>· {person.email}</span> : null}
+        <div className="mb-3 flex items-center gap-3">
+          <Avatar name={person.name} size={40} />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1
+                className="text-[20px] font-semibold tracking-tight text-text"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {person.name}
+              </h1>
+              <PersonaPill value={person.persona} />
+              <EngagementPill value={person.engagement} />
+            </div>
+            <div className="mt-0.5 flex items-center gap-2.5 text-[11px] text-text-muted">
+              <span>{person.title ?? "—"}</span>
+              {row.companyName ? (
+                <>
+                  <span>·</span>
+                  <CompanyLogo name={row.companyName} size={14} />
+                  <Link
+                    href={`/companies/${person.companyId}`}
+                    className="text-accent hover:underline"
+                  >
+                    {row.companyName}
+                  </Link>
+                </>
+              ) : null}
+            </div>
+          </div>
         </div>
-      </header>
+      </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-2">
-        <section>
-          <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Recent signals
-          </h3>
-          {recentSignals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No signals.</p>
-          ) : (
-            <ul className="space-y-2">
-              {recentSignals.map((s) => (
-                <li key={s.id} className="flex items-start gap-3 text-sm">
-                  <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-primary/70" />
-                  <div className="flex-1">
-                    <div className="font-medium">{s.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {relativeTime(s.occurredAt)}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section>
-          <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Tasks
-          </h3>
-          {openTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No tasks.</p>
-          ) : (
-            <ul className="space-y-2">
-              {openTasks.map((t) => (
-                <li key={t.id} className="flex items-center justify-between text-sm">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{t.title}</div>
-                    {t.reasoning ? (
-                      <div className="line-clamp-1 text-xs text-muted-foreground">
-                        {t.reasoning}
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+          <div className="flex flex-col gap-6">
+            <section>
+              <div className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">
+                Recent signals
+              </div>
+              {recentSignals.length === 0 ? (
+                <p className="text-[13px] text-text-muted">No signals.</p>
+              ) : (
+                <ul className="space-y-0">
+                  {recentSignals.map((s, i) => (
+                    <li
+                      key={s.id}
+                      className={`flex gap-2.5 py-2 ${
+                        i < recentSignals.length - 1 ? "border-b border-border-subtle" : ""
+                      }`}
+                    >
+                      <div
+                        className="w-[3px] shrink-0 self-stretch rounded"
+                        style={{ background: "var(--accent)" }}
+                      />
+                      <div>
+                        <div className="text-[13px] font-medium text-text">{s.title}</div>
+                        <div className="mt-0.5 text-[11px] text-text-subtle">
+                          {relativeTime(s.occurredAt)}
+                        </div>
                       </div>
-                    ) : null}
-                  </div>
-                  <PriorityIndicator value={t.priority} />
-                </li>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">
+                Open tasks
+              </div>
+              {personTasks.length === 0 ? (
+                <p className="text-[13px] text-text-muted">No tasks.</p>
+              ) : (
+                personTasks.map((t) => <TaskRow key={t.id} task={t} />)
+              )}
+            </section>
+          </div>
+
+          <aside className="h-fit rounded-lg border border-border bg-surface p-4">
+            <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">
+              Properties
+            </div>
+            <dl className="space-y-0 text-[12px]">
+              {[
+                { label: "Email", value: person.email ?? "—" },
+                { label: "LinkedIn", value: person.linkedinUrl ?? "—" },
+                { label: "Title", value: person.title ?? "—" },
+                { label: "Company", value: row.companyName ?? "—" },
+                {
+                  label: "Last interaction",
+                  value: person.lastInteractionAt ? relativeTime(person.lastInteractionAt) : "—",
+                },
+                { label: "Created", value: person.createdAt.toLocaleDateString() },
+              ].map((r, i) => (
+                <div
+                  key={r.label}
+                  className={`flex flex-col py-1.5 ${
+                    i < 5 ? "border-b border-border-subtle" : ""
+                  }`}
+                >
+                  <span className="mb-0.5 text-text-subtle">{r.label}</span>
+                  <span className="truncate text-text">{r.value}</span>
+                </div>
               ))}
-            </ul>
-          )}
-        </section>
+            </dl>
+          </aside>
+        </div>
       </div>
     </div>
   );
