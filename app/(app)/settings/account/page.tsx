@@ -3,20 +3,28 @@ import { requireSession } from "@/lib/session";
 export default async function AccountSettingsPage() {
   const session = await requireSession();
   return (
-    <div className="space-y-4">
-      <h2 className="text-base font-medium">Account</h2>
-      <dl className="space-y-2 text-sm">
-        <div className="flex items-center justify-between border-b border-border/40 py-2">
-          <dt className="text-muted-foreground">Name</dt>
-          <dd>{session.user.name}</dd>
+    <div className="max-w-[420px] space-y-4">
+      <h2
+        className="text-base font-semibold tracking-tight text-text"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        Account
+      </h2>
+      {[
+        { label: "Full name", value: session.user.name ?? "" },
+        { label: "Email", value: session.user.email },
+      ].map((row) => (
+        <div key={row.label}>
+          <label className="mb-1.5 block text-[12px] text-text-muted">{row.label}</label>
+          <input
+            defaultValue={row.value}
+            className="h-[34px] w-full rounded-md border border-border bg-surface-hover px-2.5 text-[13px] text-text outline-none"
+            readOnly
+          />
         </div>
-        <div className="flex items-center justify-between border-b border-border/40 py-2">
-          <dt className="text-muted-foreground">Email</dt>
-          <dd>{session.user.email}</dd>
-        </div>
-      </dl>
-      <p className="text-xs text-muted-foreground">
-        Editing profile and changing password land in Phase 3.
+      ))}
+      <p className="text-[11px] text-text-subtle">
+        Editing profile + password change land in Phase 4.
       </p>
     </div>
   );

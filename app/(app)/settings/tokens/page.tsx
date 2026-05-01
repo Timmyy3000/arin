@@ -20,10 +20,15 @@ export default async function ServiceTokensSettingsPage() {
     .orderBy(desc(serviceTokens.createdAt));
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-[560px] space-y-5">
       <header>
-        <h2 className="text-base font-medium">Service tokens</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h2
+          className="text-base font-semibold tracking-tight text-text"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          Service Tokens (MCP)
+        </h2>
+        <p className="mt-1 text-[12px] text-text-muted">
           Service tokens authenticate Claude (over MCP) to your workspace. Each token is
           shown once at creation — store it in your MCP client config.
         </p>
