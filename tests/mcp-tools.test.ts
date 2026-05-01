@@ -30,8 +30,8 @@ async function makeClient(orgId: string) {
   return { client: c, close: () => mcp.close() };
 }
 
-function structured<T>(result: { structuredContent?: unknown }): T {
-  return result.structuredContent as T;
+function structured<T>(result: unknown): T {
+  return (result as { structuredContent?: unknown }).structuredContent as T;
 }
 
 describe("MCP tools", () => {
