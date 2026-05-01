@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: arin
+          POSTGRES_PASSWORD: arin
+          POSTGRES_DB: arin_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U arin -d arin_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://arin:arin@localhost:5434/arin_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.20
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun test
+      - run: bun run build
+        env:
+          DATABASE_URL: postgres://arin:arin@localhost:5434/arin_test
+          BETTER_AUTH_SECRET: ci-secret-at-least-16-chars-long
+          BETTER_AUTH_URL: http://localhost:3000
