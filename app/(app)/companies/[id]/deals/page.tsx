@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deals, stages } from "@/db/schema/deals";
+import { StagePill } from "@/components/pills";
 import { money, relativeTime } from "@/lib/format";
 
 export default async function DealsTab({ params }: { params: Promise<{ id: string }> }) {
@@ -11,8 +12,6 @@ export default async function DealsTab({ params }: { params: Promise<{ id: strin
       name: deals.name,
       value: deals.value,
       stageName: stages.name,
-      isWon: stages.isWon,
-      isLost: stages.isLost,
       stageEnteredAt: deals.stageEnteredAt,
       expectedCloseDate: deals.expectedCloseDate,
     })
@@ -21,31 +20,45 @@ export default async function DealsTab({ params }: { params: Promise<{ id: strin
     .where(eq(deals.companyId, id));
 
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">No deals on this account.</p>;
+    return (
+      <div className="px-6 py-5 text-[13px] text-text-muted">
+        No deals on this account.
+      </div>
+    );
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
+    <div className="px-6 py-5">
+      <table className="w-full text-[12px]">
+        <thead className="border-b border-border bg-surface">
           <tr>
-            <th className="px-4 py-2 font-medium">Deal</th>
-            <th className="px-4 py-2 font-medium">Stage</th>
-            <th className="px-4 py-2 font-medium text-right">Value</th>
-            <th className="px-4 py-2 font-medium">Days in stage</th>
-            <th className="px-4 py-2 font-medium">Expected close</th>
+            {["Deal", "Stage", "Value", "Days in stage", "Expected close"].map((h) => (
+              <th
+                key={h}
+                className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-text-subtle"
+              >
+                {h}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((d, i) => (
-            <tr key={d.id} className={i > 0 ? "border-t border-border/60" : ""}>
-              <td className="px-4 py-3 font-medium">{d.name}</td>
-              <td className="px-4 py-3 text-muted-foreground">{d.stageName}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{money(d.value)}</td>
-              <td className="px-4 py-3 text-muted-foreground">
+          {rows.map((d) => (
+            <tr
+              key={d.id}
+              className="border-b border-border-subtle transition hover:bg-surface-hover"
+            >
+              <td className="px-3 py-2.5 font-medium text-text">{d.name}</td>
+              <td className="px-3 py-2.5">
+                <StagePill value={d.stageName} />
+              </td>
+              <td className="px-3 py-2.5 font-mono text-[11px] tabular-nums text-text">
+                {money(d.value)}
+              </td>
+              <td className="px-3 py-2.5 text-[11px] text-text-muted">
                 {relativeTime(d.stageEnteredAt)}
               </td>
-              <td className="px-4 py-3 text-muted-foreground">
+              <td className="px-3 py-2.5 text-[11px] text-text-muted">
                 {relativeTime(d.expectedCloseDate)}
               </td>
             </tr>

@@ -18,27 +18,25 @@ export function CompanyTabs({ companyId }: { companyId: string }) {
   const pathname = usePathname();
   const base = `/companies/${companyId}`;
   return (
-    <div className="border-b border-border/60 px-8">
-      <nav className="-mb-px flex gap-6">
-        {TABS.map((t) => {
-          const href = t.slug ? `${base}/${t.slug}` : base;
-          const active = t.slug ? pathname === href : pathname === base;
-          return (
-            <Link
-              key={t.slug}
-              href={href}
-              className={cn(
-                "border-b-2 px-1 py-3 text-sm transition",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t.label}
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
+    <nav className="-mb-px flex gap-0">
+      {TABS.map((t) => {
+        const href = t.slug ? `${base}/${t.slug}` : base;
+        const active = t.slug ? pathname === href : pathname === base;
+        return (
+          <Link
+            key={t.slug}
+            href={href}
+            className={cn(
+              "border-b-2 px-3.5 py-2 text-[13px] transition",
+              active
+                ? "border-accent font-medium text-text"
+                : "border-transparent text-text-muted hover:text-text",
+            )}
+          >
+            {t.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

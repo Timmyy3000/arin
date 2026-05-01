@@ -28,21 +28,25 @@ export default async function ResearchTab({ params }: { params: Promise<{ id: st
     .orderBy(desc(research.updatedAt));
 
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">No research yet. Ask Claude to research this account.</p>;
+    return (
+      <div className="px-6 py-5 text-[13px] text-text-muted">
+        No research yet. Ask Claude to research this account.
+      </div>
+    );
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-4 px-6 py-5 md:grid-cols-2">
       {rows.map((r) => (
         <article
           key={r.id}
-          className="rounded-md border border-border bg-card/40 p-5"
+          className="flex flex-col gap-2.5 rounded-lg border border-border bg-surface p-4"
         >
-          <h3 className="text-sm font-semibold capitalize">{label(r.section)}</h3>
-          <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+          <h3 className="text-[12px] font-semibold capitalize text-text">{label(r.section)}</h3>
+          <div className="whitespace-pre-wrap text-[12.5px] leading-[1.7] text-text-muted">
             {r.body}
           </div>
-          <div className="mt-4 text-xs text-muted-foreground">
+          <div className="text-[10px] text-text-subtle">
             updated {relativeTime(r.updatedAt)}
           </div>
         </article>
