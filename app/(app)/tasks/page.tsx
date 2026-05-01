@@ -3,13 +3,17 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { companies } from "@/db/schema/companies";
 import { tasks } from "@/db/schema/tasks";
-import { PriorityIndicator } from "@/components/pills";
-import { TaskActions } from "@/components/task-actions";
-import { relativeTime } from "@/lib/format";
+import {
+  PrioritySectionHeader,
+  TaskRow,
+  type TaskRowData,
+} from "@/components/task-row";
 import { requireOrgSession } from "@/lib/session";
 
 const STATUS_OPTIONS = ["open", "done", "dismissed"] as const;
 type Status = (typeof STATUS_OPTIONS)[number];
+const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
+type Priority = (typeof PRIORITY_ORDER)[number];
 
 export default async function TasksPage({
   searchParams,
@@ -18,9 +22,11 @@ export default async function TasksPage({
 }) {
   const session = await requireOrgSession();
   const sp = await searchParams;
-  const status: Status = STATUS_OPTIONS.includes(sp.status as Status) ? (sp.status as Status) : "open";
+  const status: Status = STATUS_OPTIONS.includes(sp.status as Status)
+    ? (sp.status as Status)
+    : "open";
 
-  const rows = await db()
+  const rows = (await db()
     .select({
       id: tasks.id,
       title: tasks.title,
@@ -35,72 +41,101 @@ export default async function TasksPage({
     .from(tasks)
     .leftJoin(companies, eq(tasks.companyId, companies.id))
     .where(and(eq(tasks.organizationId, session.organizationId), eq(tasks.status, status)))
-    .orderBy(desc(tasks.priority), asc(tasks.dueDate));
+    .orderBy(desc(tasks.priority), asc(tasks.dueDate))) as TaskRowData[];
+
+  const allCounts = await db()
+    .select({ status: tasks.status })
+    .from(tasks)
+    .where(eq(tasks.organizationId, session.organizationId));
+  const total = allCounts.length;
+  const done = allCounts.filter((r) => r.status === "done").length;
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+
+  const grouped: Record<Priority, TaskRowData[]> = {
+    urgent: [],
+    high: [],
+    medium: [],
+    low: [],
+  };
+  if (status === "open") {
+    for (const r of rows) {
+      (grouped[r.priority as Priority] ?? grouped.low).push(r);
+    }
+  }
 
   return (
-    <div className="px-8 py-6">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {rows.length} {status} task{rows.length === 1 ? "" : "s"}
-          </p>
-        </div>
-        <nav className="flex items-center gap-1 rounded-md border border-border p-1 text-xs">
-          {STATUS_OPTIONS.map((s) => (
-            <Link
-              key={s}
-              href={`/tasks?status=${s}`}
-              className={`rounded px-2 py-1 capitalize ${
-                s === status ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
+    <div className="flex h-full flex-col bg-background">
+      <div className="h-[3px] shrink-0 bg-border-subtle">
+        <div
+          className="h-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: "oklch(0.65 0.14 155)" }}
+        />
+      </div>
+      <header className="shrink-0 border-b border-border px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1
+              className="text-base font-semibold tracking-tight text-text"
+              style={{ fontFamily: "var(--font-display)" }}
             >
-              {s}
-            </Link>
-          ))}
-        </nav>
+              Tasks
+            </h1>
+            <span className="text-[12px] text-text-muted">
+              <span
+                className="font-medium"
+                style={{ color: "oklch(0.65 0.14 155)" }}
+              >
+                {done}/{total}
+              </span>{" "}
+              actioned ({pct}%)
+            </span>
+          </div>
+          <div className="flex gap-1.5">
+            {STATUS_OPTIONS.map((s) => (
+              <Link
+                key={s}
+                href={`/tasks?status=${s}`}
+                className={
+                  s === status
+                    ? "rounded-md border border-accent bg-accent-subtle px-2.5 py-1 text-[12px] capitalize text-accent"
+                    : "rounded-md border border-border bg-surface-hover px-2.5 py-1 text-[12px] capitalize text-text-muted hover:text-text"
+                }
+              >
+                {s}
+              </Link>
+            ))}
+          </div>
+        </div>
       </header>
 
-      {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
-          No {status} tasks.
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {rows.map((t) => (
-            <li
-              key={t.id}
-              className="rounded-md border border-border bg-card/30 px-4 py-3"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <PriorityIndicator value={t.priority} />
-                    <span className="text-sm font-medium">{t.title}</span>
-                    {t.companyName ? (
-                      <Link
-                        href={`/companies/${t.companyId}`}
-                        className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-                      >
-                        {t.companyName}
-                      </Link>
-                    ) : null}
-                  </div>
-                  {t.reasoning ? (
-                    <p className="mt-1 text-xs text-muted-foreground">{t.reasoning}</p>
-                  ) : null}
+      <div className="flex-1 overflow-y-auto">
+        {status === "open" ? (
+          rows.length === 0 ? (
+            <div className="px-3.5 py-10 text-center text-[13px] text-text-muted">
+              No open tasks.
+            </div>
+          ) : (
+            PRIORITY_ORDER.map((p) => {
+              const list = grouped[p];
+              if (list.length === 0) return null;
+              return (
+                <div key={p}>
+                  <PrioritySectionHeader priority={p} count={list.length} />
+                  {list.map((t) => (
+                    <TaskRow key={t.id} task={t} />
+                  ))}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {relativeTime(t.dueDate)}
-                  </span>
-                  {t.status === "open" ? <TaskActions taskId={t.id} /> : null}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+              );
+            })
+          )
+        ) : rows.length === 0 ? (
+          <div className="px-3.5 py-10 text-center text-[13px] text-text-muted">
+            No {status} tasks.
+          </div>
+        ) : (
+          rows.map((t) => <TaskRow key={t.id} task={t} />)
+        )}
+      </div>
     </div>
   );
 }
