@@ -1,7 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { eq } from "drizzle-orm";
 import { createDb } from "@/db/client";
 import { organization } from "@/db/schema/auth";
 import { pipelines, stages } from "@/db/schema/deals";
