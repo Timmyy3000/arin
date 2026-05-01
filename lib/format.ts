@@ -27,6 +27,15 @@ const MONEY = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
+export function thirtyDayWindow(): { now: number; since: Date } {
+  const now = Date.now();
+  return { now, since: new Date(now - 30 * 24 * 60 * 60 * 1000) };
+}
+
+export function isoDay(epoch: number): string {
+  return new Date(epoch).toISOString().slice(0, 10);
+}
+
 export function money(value: string | number | null | undefined): string {
   if (value == null) return "—";
   const n = typeof value === "string" ? Number.parseFloat(value) : value;

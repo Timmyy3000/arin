@@ -79,7 +79,7 @@ export default async function CockpitPage() {
 
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          Today's tasks
+          Today&apos;s tasks
         </h2>
         {openTasks.length === 0 ? (
           <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">

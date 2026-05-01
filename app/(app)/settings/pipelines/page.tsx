@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { pipelines, stages } from "@/db/schema/deals";
 import { requireOrgSession } from "@/lib/session";

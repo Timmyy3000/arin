@@ -62,7 +62,7 @@ export default async function OverviewTab({ params }: { params: Promise<{ id: st
       {overview[0] ? (
         <section>
           <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            What's happening
+            What&apos;s happening
           </h3>
           <div className="rounded-md border border-border bg-card/40 p-4 text-sm leading-relaxed">
             {overview[0].body}

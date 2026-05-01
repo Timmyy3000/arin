@@ -6,7 +6,7 @@ import { signals } from "@/db/schema/signals";
 import { tasks } from "@/db/schema/tasks";
 import { TemperaturePill } from "@/components/pills";
 import { Sparkline } from "@/components/sparkline";
-import { relativeTime } from "@/lib/format";
+import { isoDay, relativeTime, thirtyDayWindow } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
 
 export default async function CompaniesPage() {
@@ -27,7 +27,7 @@ export default async function CompaniesPage() {
     .where(eq(companies.organizationId, orgId))
     .orderBy(desc(companies.lastSignalAt));
 
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const { now, since } = thirtyDayWindow();
   const signalBuckets = await db()
     .select({
       companyId: signals.companyId,
@@ -49,9 +49,7 @@ export default async function CompaniesPage() {
     const inner = buckets.get(r.id) ?? new Map<string, number>();
     const arr: number[] = [];
     for (let i = 29; i >= 0; i--) {
-      const day = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10);
+      const day = isoDay(now - i * 24 * 60 * 60 * 1000);
       arr.push(inner.get(day) ?? 0);
     }
     sparkByCompany.set(r.id, arr);
