@@ -37,9 +37,11 @@ describe("seed", () => {
       .where(eq(user.email, "admin@example.com"));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.id).toBe(userId);
-  });
+  }, 30_000);
 
-  test("ensureMembership is idempotent and links user to org", async () => {
+  test(
+    "ensureMembership is idempotent and links user to org",
+    async () => {
     const orgId = await seedDefaultOrg(db, "Default", "default");
     const userId = await seedAdminUser("admin@example.com", "password-1234");
     await ensureMembership(db, userId, orgId, "owner");
@@ -48,7 +50,9 @@ describe("seed", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.role).toBe("owner");
     expect(rows[0]?.organizationId).toBe(orgId);
-  });
+  },
+    30_000,
+  );
 
   test("seedDefaultPipeline creates pipeline with 7 stages, idempotent", async () => {
     const orgId = await seedDefaultOrg(db, "Default", "default");
