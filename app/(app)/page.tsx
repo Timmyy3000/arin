@@ -5,6 +5,7 @@ import { companies } from "@/db/schema/companies";
 import { deals, stages } from "@/db/schema/deals";
 import { tasks } from "@/db/schema/tasks";
 import { PriorityIndicator, TemperaturePill } from "@/components/pills";
+import { TaskActions } from "@/components/task-actions";
 import { relativeTime, money } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
 
@@ -122,8 +123,11 @@ export default async function CockpitPage() {
                             </p>
                           ) : null}
                         </div>
-                        <div className="shrink-0 text-xs text-muted-foreground">
-                          {relativeTime(t.dueDate)}
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {relativeTime(t.dueDate)}
+                          </span>
+                          <TaskActions taskId={t.id} />
                         </div>
                       </div>
                     ))}

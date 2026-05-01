@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { companies } from "@/db/schema/companies";
 import { tasks } from "@/db/schema/tasks";
 import { PriorityIndicator } from "@/components/pills";
+import { TaskActions } from "@/components/task-actions";
 import { relativeTime } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
 
@@ -89,8 +90,11 @@ export default async function TasksPage({
                     <p className="mt-1 text-xs text-muted-foreground">{t.reasoning}</p>
                   ) : null}
                 </div>
-                <div className="shrink-0 text-xs text-muted-foreground">
-                  {relativeTime(t.dueDate)}
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {relativeTime(t.dueDate)}
+                  </span>
+                  {t.status === "open" ? <TaskActions taskId={t.id} /> : null}
                 </div>
               </div>
             </li>
