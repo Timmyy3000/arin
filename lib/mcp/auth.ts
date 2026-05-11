@@ -1,13 +1,26 @@
+import { eq } from "drizzle-orm";
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { db } from "@/db/client";
+import { user } from "@/db/schema/auth";
+import type { Actor } from "@/lib/audit";
 import { env } from "@/lib/env";
 import { resolveServiceToken } from "@/lib/service-tokens";
 
 const defaultJwks = createRemoteJWKSet(new URL(`${env.APP_URL}/api/auth/jwks`));
 export const MCP_RESOURCE = `${env.APP_URL}/api/mcp`;
 
-export type McpAuthContext = { organizationId: string };
+export type McpAuthContext = { organizationId: string; actor: Actor };
 export type AuthenticateOptions = { jwks?: JWTVerifyGetKey };
+
+async function lookupUserName(userId: string | null): Promise<string | null> {
+  if (!userId) return null;
+  const rows = await db()
+    .select({ name: user.name })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  return rows[0]?.name ?? null;
+}
 
 export async function authenticate(
   request: Request,
@@ -19,7 +32,20 @@ export async function authenticate(
   if (!token) return null;
 
   const svc = await resolveServiceToken(db(), token);
-  if (svc) return { organizationId: svc.organizationId };
+  if (svc) {
+    const userName = await lookupUserName(svc.createdByUserId);
+    return {
+      organizationId: svc.organizationId,
+      actor: {
+        type: "service_token",
+        userId: svc.createdByUserId,
+        userName,
+        tokenId: svc.id,
+        tokenName: svc.name,
+        clientId: null,
+      },
+    };
+  }
 
   try {
     const { payload } = await jwtVerify(token, opts.jwks ?? defaultJwks, {
@@ -28,7 +54,25 @@ export async function authenticate(
     });
     const orgId = payload.org_id;
     if (typeof orgId !== "string" || orgId.length === 0) return null;
-    return { organizationId: orgId };
+    const sub = typeof payload.sub === "string" ? payload.sub : null;
+    if (!sub) return null;
+    const clientId =
+      typeof payload.client_id === "string" && payload.client_id.length > 0
+        ? payload.client_id
+        : null;
+    if (!clientId) return null;
+    const userName = await lookupUserName(sub);
+    return {
+      organizationId: orgId,
+      actor: {
+        type: "oauth_jwt",
+        userId: sub,
+        userName,
+        tokenId: null,
+        tokenName: null,
+        clientId,
+      },
+    };
   } catch (err) {
     console.warn(
       "[mcp] jwt verify failed:",
