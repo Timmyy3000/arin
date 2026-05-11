@@ -9,10 +9,18 @@ const schema = z.object({
   ADMIN_PASSWORD: z.string().min(8).optional(),
   DEFAULT_ORG_NAME: z.string().default("Default"),
   DEFAULT_ORG_SLUG: z.string().default("default"),
-  CRON_SECRET: z.string().min(16).optional(),
-  GITHUB_CLIENT_ID: z.string().optional(),
-  GITHUB_CLIENT_SECRET: z.string().optional(),
 });
 
-export const env = schema.parse(process.env);
 export type Env = z.infer<typeof schema>;
+
+const isBuilding = process.env.NEXT_PHASE === "phase-production-build";
+
+const buildDefaults = {
+  DATABASE_URL: "postgres://build:build@localhost:5432/build",
+  BETTER_AUTH_SECRET: "build-time-placeholder-secret-32-chars",
+  BETTER_AUTH_URL: "http://localhost:3000",
+};
+
+export const env: Env = isBuilding
+  ? schema.parse({ ...buildDefaults, ...process.env })
+  : schema.parse(process.env);

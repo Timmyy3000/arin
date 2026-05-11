@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { env } from "@/lib/env";
 import * as schema from "./schema";
 
 export type Database = ReturnType<typeof createDb>;
@@ -11,10 +12,6 @@ export function createDb(databaseUrl: string) {
 
 let cached: Database | undefined;
 export function db(): Database {
-  if (!cached) {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error("DATABASE_URL is required");
-    cached = createDb(url);
-  }
+  if (!cached) cached = createDb(env.DATABASE_URL);
   return cached;
 }
