@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { deals, pipelines, stages } from "@/db/schema/deals";
 import type { McpContext } from "../context";
@@ -28,6 +28,74 @@ export function registerDealTools(server: McpServer, ctx: McpContext): void {
         result.push({ ...p, stages: sgs });
       }
       return jsonResult({ pipelines: result });
+    },
+  );
+
+  server.registerTool(
+    "list_deals",
+    {
+      title: "List deals",
+      description:
+        "List deals in the workspace. Filter by stage or owner if provided. Most recently updated first.",
+      inputSchema: {
+        stageId: z.string().uuid().optional(),
+        ownerUserId: z.string().optional(),
+        limit: z.number().int().min(1).max(200).optional(),
+      },
+    },
+    async ({ stageId, ownerUserId, limit }) => {
+      const conds = [eq(deals.organizationId, ctx.organizationId)];
+      if (stageId) conds.push(eq(deals.stageId, stageId));
+      if (ownerUserId) conds.push(eq(deals.ownerUserId, ownerUserId));
+      const rows = await ctx.db
+        .select()
+        .from(deals)
+        .where(and(...conds))
+        .orderBy(desc(deals.updatedAt))
+        .limit(limit ?? 50);
+      return jsonResult({ deals: rows });
+    },
+  );
+
+  server.registerTool(
+    "get_deal",
+    {
+      title: "Get deal by id",
+      description: "Fetch a single deal by UUID.",
+      inputSchema: { id: z.string().uuid() },
+    },
+    async ({ id }) => {
+      const rows = await ctx.db
+        .select()
+        .from(deals)
+        .where(and(eq(deals.id, id), eq(deals.organizationId, ctx.organizationId)))
+        .limit(1);
+      if (!rows[0]) return jsonResult({ error: "not_found" });
+      return jsonResult({ deal: rows[0] });
+    },
+  );
+
+  server.registerTool(
+    "list_deals_for_company",
+    {
+      title: "List deals on a company",
+      description:
+        "All deals attached to a specific company. Most recently updated first. Use this before create_deal to avoid creating duplicates.",
+      inputSchema: {
+        companyId: z.string().uuid(),
+        limit: z.number().int().min(1).max(200).optional(),
+      },
+    },
+    async ({ companyId, limit }) => {
+      const rows = await ctx.db
+        .select()
+        .from(deals)
+        .where(
+          and(eq(deals.organizationId, ctx.organizationId), eq(deals.companyId, companyId)),
+        )
+        .orderBy(desc(deals.updatedAt))
+        .limit(limit ?? 50);
+      return jsonResult({ deals: rows });
     },
   );
 
