@@ -11,6 +11,8 @@ import { TemperaturePill } from "@/components/pills";
 import { isoDay, relativeTime, thirtyDayWindow } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
 
+const ROW_LIMIT = 200;
+
 const TEMP_FILTERS = [
   { v: "all", label: "All" },
   { v: "cold", label: "Cold" },
@@ -48,7 +50,8 @@ export default async function CompaniesPage({
       })
       .from(companies)
       .where(where)
-      .orderBy(desc(companies.lastSignalAt)),
+      .orderBy(desc(companies.lastSignalAt))
+      .limit(ROW_LIMIT + 1),
     db()
       .select({
         companyId: signals.companyId,
@@ -99,7 +102,9 @@ export default async function CompaniesPage({
             Companies
           </h1>
           <span className="text-[12px] text-text-subtle">
-            {rows.length} accounts
+            {rows.length > ROW_LIMIT
+              ? `Showing ${ROW_LIMIT}+ accounts`
+              : `${rows.length} accounts`}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -149,7 +154,7 @@ export default async function CompaniesPage({
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.slice(0, ROW_LIMIT).map((r) => (
                 <tr
                   key={r.id}
                   className="cursor-pointer border-b border-border-subtle transition hover:bg-surface-hover"
