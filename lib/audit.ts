@@ -105,12 +105,14 @@ const inputSchema = z.object({
   action: z.enum(AUDIT_ACTIONS),
   changes: z
     .union([
-      z.object({ after: z.record(z.string(), z.unknown()) }),
-      z.object({
-        before: z.record(z.string(), z.unknown()),
-        after: z.record(z.string(), z.unknown()),
-      }),
-      z.object({ before: z.record(z.string(), z.unknown()) }),
+      z
+        .object({
+          before: z.record(z.string(), z.unknown()),
+          after: z.record(z.string(), z.unknown()),
+        })
+        .strict(),
+      z.object({ after: z.record(z.string(), z.unknown()) }).strict(),
+      z.object({ before: z.record(z.string(), z.unknown()) }).strict(),
     ])
     .optional(),
 });
@@ -242,6 +244,12 @@ export async function getEntityAuditBatch(
   return grouped;
 }
 
+function valuesEqual(x: unknown, y: unknown): boolean {
+  if (Object.is(x, y)) return true;
+  if (x instanceof Date && y instanceof Date) return x.getTime() === y.getTime();
+  return false;
+}
+
 export function diffChangedFields(
   before: Record<string, unknown>,
   after: Record<string, unknown>,
@@ -250,7 +258,7 @@ export function diffChangedFields(
   const a: Record<string, unknown> = {};
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const key of keys) {
-    if (!Object.is(before[key], after[key])) {
+    if (!valuesEqual(before[key], after[key])) {
       b[key] = before[key];
       a[key] = after[key];
     }
