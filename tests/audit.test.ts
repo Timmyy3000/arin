@@ -118,6 +118,16 @@ describe("audit", () => {
     expect(diff.after).toEqual({ b: "y", d: 42 });
   });
 
+  test("diffChangedFields treats Date instances with the same instant as equal", () => {
+    const t = Date.UTC(2026, 4, 11, 12, 0, 0);
+    const before = { createdAt: new Date(t), name: "Old" };
+    const after = { createdAt: new Date(t), name: "New" };
+    const diff = diffChangedFields(before, after);
+    expect(diff.before).toEqual({ name: "Old" });
+    expect(diff.after).toEqual({ name: "New" });
+    expect(Object.keys(diff.before)).not.toContain("createdAt");
+  });
+
   test("getEntityAudit returns rows newest-first scoped to org + entity", async () => {
     const orgA = await seedOrg("org_a");
     const orgB = await seedOrg("org_b");

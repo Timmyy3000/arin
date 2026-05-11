@@ -416,6 +416,68 @@ describe("MCP tools", () => {
     expect(changes.after.attendees.sort()).toEqual([p1.person.id, p2.person.id].sort());
   });
 
+  test("list_recent_activity returns org-scoped rows newest-first and respects filters", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    const a = structured<{ company: { id: string } }>(
+      await client.callTool({
+        name: "create_company",
+        arguments: { name: "First", domain: "first.example" },
+      }),
+    );
+    const b = structured<{ person: { id: string } }>(
+      await client.callTool({
+        name: "create_person",
+        arguments: { name: "Person One" },
+      }),
+    );
+
+    type Activity = {
+      activity: Array<{
+        entityType: string;
+        entityId: string;
+        actorUserId: string | null;
+      }>;
+    };
+
+    const all = structured<Activity>(
+      await client.callTool({ name: "list_recent_activity", arguments: {} }),
+    );
+    const ids = all.activity.map((r) => r.entityId);
+    expect(ids).toContain(a.company.id);
+    expect(ids).toContain(b.person.id);
+    // Newest first: the person was created after the company.
+    expect(all.activity[0]!.entityId).toBe(b.person.id);
+
+    const onlyCompanies = structured<Activity>(
+      await client.callTool({
+        name: "list_recent_activity",
+        arguments: { entityType: "company" },
+      }),
+    );
+    expect(onlyCompanies.activity.length).toBe(1);
+    expect(onlyCompanies.activity[0]!.entityId).toBe(a.company.id);
+
+    const byActor = structured<Activity>(
+      await client.callTool({
+        name: "list_recent_activity",
+        arguments: { actorUserId: `${orgId}_user` },
+      }),
+    );
+    expect(byActor.activity.length).toBeGreaterThanOrEqual(2);
+    for (const r of byActor.activity) expect(r.actorUserId).toBe(`${orgId}_user`);
+
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const empty = structured<Activity>(
+      await client.callTool({
+        name: "list_recent_activity",
+        arguments: { since: future },
+      }),
+    );
+    expect(empty.activity).toEqual([]);
+  });
+
   test("cross-org access is rejected (org-scoped queries)", async () => {
     const orgA = await seedOrgWithPipeline("org_a");
     const orgB = await seedOrgWithPipeline("org_b");
