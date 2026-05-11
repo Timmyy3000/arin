@@ -22,7 +22,18 @@ async function seedOrgWithPipeline(orgId = "org_mcp"): Promise<string> {
 
 async function makeClient(orgId: string) {
   const [client, server] = InMemoryTransport.createLinkedPair();
-  const mcp = createMcpServer({ organizationId: orgId, db });
+  const mcp = createMcpServer({
+    organizationId: orgId,
+    db,
+    actor: {
+      type: "user",
+      userId: "test_user",
+      userName: "Test User",
+      tokenId: null,
+      tokenName: null,
+      clientId: null,
+    },
+  });
   await mcp.connect(server);
   const c = new Client({ name: "test", version: "0.0.0" });
   await c.connect(client);

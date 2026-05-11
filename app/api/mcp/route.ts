@@ -18,7 +18,11 @@ export async function POST(request: Request): Promise<Response> {
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
   });
-  const server = createMcpServer({ organizationId: ctx.organizationId, db: db() });
+  const server = createMcpServer({
+    organizationId: ctx.organizationId,
+    db: db(),
+    actor: ctx.actor,
+  });
   await server.connect(transport);
 
   try {
