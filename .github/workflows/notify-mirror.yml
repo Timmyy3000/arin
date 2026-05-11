@@ -1,0 +1,16 @@
+name: notify deployment mirror
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch upstream-sync to mirror
+        env:
+          GH_TOKEN: ${{ secrets.MIRROR_DISPATCH_PAT }}
+        run: |
+          gh api "repos/${{ secrets.MIRROR_REPO }}/dispatches" \
+            -f event_type=upstream-sync
