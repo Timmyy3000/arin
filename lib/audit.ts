@@ -1,5 +1,7 @@
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "@/db/client";
+import { user } from "@/db/schema/auth";
 import { auditLog } from "@/db/schema/audit";
 
 export const ENTITY_TYPES = [
@@ -142,6 +144,91 @@ export async function recordAudit(db: Database, input: AuditInput): Promise<void
       err: err instanceof Error ? err.message : String(err),
     });
   }
+}
+
+export type AuditRow = {
+  id: string;
+  action: AuditAction;
+  actorType: ActorType;
+  actorUserId: string | null;
+  actorUserName: string | null;
+  actorTokenId: string | null;
+  actorTokenName: string | null;
+  actorClientId: string | null;
+  entityType: EntityType;
+  entityId: string;
+  changes: AuditChanges | null;
+  createdAt: Date;
+};
+
+function baseSelect(db: Database) {
+  return db
+    .select({
+      id: auditLog.id,
+      action: auditLog.action,
+      actorType: auditLog.actorType,
+      actorUserId: auditLog.actorUserId,
+      actorUserName: sql<
+        string | null
+      >`COALESCE(${user.name}, ${auditLog.actorUserName})`.as("actor_user_name"),
+      actorTokenId: auditLog.actorTokenId,
+      actorTokenName: auditLog.actorTokenName,
+      actorClientId: auditLog.actorClientId,
+      entityType: auditLog.entityType,
+      entityId: auditLog.entityId,
+      changes: auditLog.changes,
+      createdAt: auditLog.createdAt,
+    })
+    .from(auditLog)
+    .leftJoin(user, eq(auditLog.actorUserId, user.id));
+}
+
+export async function getEntityAudit(
+  db: Database,
+  organizationId: string,
+  entityType: EntityType,
+  entityId: string,
+  limit = 20,
+): Promise<AuditRow[]> {
+  const rows = await baseSelect(db)
+    .where(
+      and(
+        eq(auditLog.organizationId, organizationId),
+        eq(auditLog.entityType, entityType),
+        eq(auditLog.entityId, entityId),
+      ),
+    )
+    .orderBy(desc(auditLog.createdAt))
+    .limit(limit);
+  return rows as AuditRow[];
+}
+
+export async function getEntityAuditBatch(
+  db: Database,
+  organizationId: string,
+  entityType: EntityType,
+  entityIds: string[],
+  perEntityLimit = 5,
+): Promise<Map<string, AuditRow[]>> {
+  const grouped = new Map<string, AuditRow[]>();
+  for (const id of entityIds) grouped.set(id, []);
+  if (entityIds.length === 0) return grouped;
+
+  const rows = (await baseSelect(db)
+    .where(
+      and(
+        eq(auditLog.organizationId, organizationId),
+        eq(auditLog.entityType, entityType),
+        inArray(auditLog.entityId, entityIds),
+      ),
+    )
+    .orderBy(desc(auditLog.createdAt))) as AuditRow[];
+
+  for (const row of rows) {
+    const arr = grouped.get(row.entityId);
+    if (arr && arr.length < perEntityLimit) arr.push(row);
+  }
+  return grouped;
 }
 
 export function diffChangedFields(
