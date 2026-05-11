@@ -30,6 +30,10 @@ export const auth = betterAuth({
         const orgId = await resolveConsentOrg(user.id, resource);
         return orgId ? { org_id: orgId } : {};
       },
+      silenceWarnings: {
+        oauthAuthServerConfig: true,
+        openidConfig: true,
+      },
     }),
     nextCookies(),
   ],
