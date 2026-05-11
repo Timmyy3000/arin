@@ -1,10 +1,12 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { companies } from "@/db/schema/companies";
 import { deals } from "@/db/schema/deals";
 import { getDefaultPipeline, getStages } from "@/lib/data";
 import { requireOrgSession } from "@/lib/session";
 import { DealsView } from "./deals-view";
+
+const DEAL_LIMIT = 500;
 
 export default async function DealsPage({
   searchParams,
@@ -31,7 +33,9 @@ export default async function DealsPage({
       })
       .from(deals)
       .innerJoin(companies, eq(deals.companyId, companies.id))
-      .where(eq(deals.organizationId, orgId)),
+      .where(eq(deals.organizationId, orgId))
+      .orderBy(desc(deals.stageEnteredAt))
+      .limit(DEAL_LIMIT),
   ]);
   if (!pipeline) {
     return (
