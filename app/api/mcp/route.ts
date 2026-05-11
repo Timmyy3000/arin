@@ -10,7 +10,14 @@ function unauthorized(message: string) {
   });
 }
 
-async function handleMcp(request: Request): Promise<Response> {
+function methodNotAllowed() {
+  return new Response(JSON.stringify({ error: "method not supported" }), {
+    status: 405,
+    headers: { "content-type": "application/json", Allow: "POST" },
+  });
+}
+
+export async function POST(request: Request): Promise<Response> {
   const auth = request.headers.get("authorization") ?? "";
   if (!auth.toLowerCase().startsWith("bearer ")) {
     return unauthorized("missing bearer token");
@@ -33,14 +40,8 @@ async function handleMcp(request: Request): Promise<Response> {
   }
 }
 
-export async function POST(request: Request): Promise<Response> {
-  return handleMcp(request);
-}
-
-export async function GET(request: Request): Promise<Response> {
-  return handleMcp(request);
-}
-
-export async function DELETE(request: Request): Promise<Response> {
-  return handleMcp(request);
-}
+// Stateless server doesn't push notifications and has no sessions to terminate,
+// so refuse the GET SSE stream and DELETE — both would only allocate without value
+// and GET in particular leaks McpServer instances by holding them open indefinitely.
+export const GET = methodNotAllowed;
+export const DELETE = methodNotAllowed;

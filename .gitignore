@@ -34,6 +34,15 @@ yarn-error.log*
 .env*
 !.env.example
 
+# local working artefacts (plans, scratch, drafts) — never committed
+artefacts/
+
+# claude code harness session state
+.claude/
+
+# local working artefacts (plans, scratch, drafts) — never committed
+artefacts/
+
 # vercel
 .vercel
 
