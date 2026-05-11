@@ -6,6 +6,7 @@ import { oauthProvider } from "@better-auth/oauth-provider";
 import { db } from "@/db/client";
 import * as schema from "@/db/schema";
 import { env } from "./env";
+import { resolveConsentOrg } from "./oauth-consent";
 
 const MCP_RESOURCE = `${env.APP_URL}/api/mcp`;
 
@@ -24,6 +25,11 @@ export const auth = betterAuth({
       consentPage: "/oauth/consent",
       accessTokenExpiresIn: 60 * 60 * 24,
       refreshTokenExpiresIn: 60 * 60 * 24 * 30,
+      customAccessTokenClaims: async ({ user, resource }) => {
+        if (!user?.id) return {};
+        const orgId = await resolveConsentOrg(user.id, resource);
+        return orgId ? { org_id: orgId } : {};
+      },
     }),
     nextCookies(),
   ],

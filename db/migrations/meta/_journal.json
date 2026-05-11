@@ -15,6 +15,13 @@
       "when": 1778506795257,
       "tag": "0001_add-oauth-provider",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778507006599,
+      "tag": "0002_add-oauth-consent-scope",
+      "breakpoints": true
     }
   ]
 }
