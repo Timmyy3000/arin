@@ -1,6 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { notes } from "@/db/schema/notes";
+import { recordAudit } from "@/lib/audit";
 import type { McpContext } from "../context";
 import { jsonResult } from "../server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -32,6 +33,14 @@ export function registerNoteTools(server: McpServer, ctx: McpContext): void {
           author: args.author ?? "agent",
         })
         .returning();
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "note",
+        entityId: row.id,
+        action: "create",
+        changes: { after: row },
+      });
       return jsonResult({ note: row });
     },
   );
