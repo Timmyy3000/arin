@@ -13,7 +13,12 @@ export async function issueServiceTokenAction(
 ): Promise<{ id: string; token: string }> {
   const session = await requireOrgSession();
   const name = NameSchema.parse(formData.get("name"));
-  const result = await issueServiceToken(db(), session.organizationId, name);
+  const result = await issueServiceToken(
+    db(),
+    session.organizationId,
+    name,
+    session.user.id,
+  );
   revalidatePath("/settings/tokens");
   return result;
 }
