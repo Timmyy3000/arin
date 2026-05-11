@@ -1,6 +1,7 @@
 import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { people } from "@/db/schema/companies";
+import { diffChangedFields, recordAudit } from "@/lib/audit";
 import type { McpContext } from "../context";
 import { jsonResult } from "../server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -81,6 +82,14 @@ export function registerPeopleTools(server: McpServer, ctx: McpContext): void {
           persona: args.persona ?? "unknown",
         })
         .returning();
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "person",
+        entityId: row.id,
+        action: "create",
+        changes: { after: row },
+      });
       return jsonResult({ person: row });
     },
   );
@@ -102,6 +111,12 @@ export function registerPeopleTools(server: McpServer, ctx: McpContext): void {
       },
     },
     async ({ id, lastInteractionAt, ...patch }) => {
+      const before = await ctx.db
+        .select()
+        .from(people)
+        .where(and(eq(people.id, id), eq(people.organizationId, ctx.organizationId)))
+        .limit(1);
+      if (!before[0]) return jsonResult({ error: "not_found" });
       const [row] = await ctx.db
         .update(people)
         .set({
@@ -111,7 +126,14 @@ export function registerPeopleTools(server: McpServer, ctx: McpContext): void {
         })
         .where(and(eq(people.id, id), eq(people.organizationId, ctx.organizationId)))
         .returning();
-      if (!row) return jsonResult({ error: "not_found" });
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "person",
+        entityId: row.id,
+        action: "update",
+        changes: diffChangedFields(before[0], row),
+      });
       return jsonResult({ person: row });
     },
   );
