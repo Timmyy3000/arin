@@ -303,14 +303,58 @@ describe("MCP tools", () => {
     const { company } = structured<{ company: { id: string } }>(
       await a.client.callTool({ name: "create_company", arguments: { name: "Acme", domain: "acme.com" } }),
     );
+    await a.client.callTool({
+      name: "create_person",
+      arguments: { name: "Alice", email: "alice@acme.com", companyId: company.id },
+    });
+    const { deal } = structured<{ deal: { id: string } }>(
+      await a.client.callTool({
+        name: "create_deal",
+        arguments: { companyId: company.id, name: "Acme expansion", value: 1000 },
+      }),
+    );
     await a.close();
 
     const b = await makeClient(orgB);
-    const fromB = structured<{ error?: string; company?: unknown }>(
-      await b.client.callTool({ name: "get_company", arguments: { id: company.id } }),
-    );
     close = b.close;
-    expect(fromB.error).toBe("not_found");
-    expect(fromB.company).toBeUndefined();
+
+    expect(
+      structured<{ error?: string }>(
+        await b.client.callTool({ name: "get_company", arguments: { id: company.id } }),
+      ).error,
+    ).toBe("not_found");
+
+    expect(
+      structured<{ companies: unknown[] }>(
+        await b.client.callTool({ name: "search_companies", arguments: { query: "acme" } }),
+      ).companies,
+    ).toEqual([]);
+
+    expect(
+      structured<{ people: unknown[] }>(
+        await b.client.callTool({ name: "search_people", arguments: { query: "alice" } }),
+      ).people,
+    ).toEqual([]);
+
+    expect(
+      structured<{ error?: string }>(
+        await b.client.callTool({ name: "get_deal", arguments: { id: deal.id } }),
+      ).error,
+    ).toBe("not_found");
+
+    expect(
+      structured<{ deals: unknown[] }>(
+        await b.client.callTool({ name: "list_deals", arguments: {} }),
+      ).deals,
+    ).toEqual([]);
+
+    expect(
+      structured<{ deals: unknown[] }>(
+        await b.client.callTool({
+          name: "list_deals_for_company",
+          arguments: { companyId: company.id },
+        }),
+      ).deals,
+    ).toEqual([]);
   });
 });
