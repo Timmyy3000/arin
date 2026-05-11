@@ -20,6 +20,7 @@ export const auth = betterAuth({
     jwt(),
     oauthProvider({
       validAudiences: [MCP_RESOURCE],
+      // TODO: rate-limit /api/auth/oauth2/register per IP before relying on this in untrusted environments.
       allowDynamicClientRegistration: true,
       loginPage: "/sign-in",
       consentPage: "/oauth/consent",

@@ -29,7 +29,11 @@ export async function authenticate(
     const orgId = payload.org_id;
     if (typeof orgId !== "string" || orgId.length === 0) return null;
     return { organizationId: orgId };
-  } catch {
+  } catch (err) {
+    console.warn(
+      "[mcp] jwt verify failed:",
+      err instanceof Error ? err.message : String(err),
+    );
     return null;
   }
 }
