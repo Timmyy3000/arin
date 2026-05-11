@@ -65,6 +65,17 @@ export type Actor =
       clientId: string;
     };
 
+export function userActor(userId: string, userName: string | null): Actor {
+  return {
+    type: "user",
+    userId,
+    userName,
+    tokenId: null,
+    tokenName: null,
+    clientId: null,
+  };
+}
+
 export type AuditChanges =
   | { after: Record<string, unknown> }
   | { before: Record<string, unknown>; after: Record<string, unknown> }
