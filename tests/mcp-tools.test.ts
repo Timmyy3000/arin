@@ -194,6 +194,108 @@ describe("MCP tools", () => {
     expect(moved.deal.stageId).toBe(wonStageId!);
   });
 
+  test("search_companies finds by partial name and partial domain", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    await client.callTool({ name: "create_company", arguments: { name: "Acme Corp", domain: "acme.com" } });
+    await client.callTool({ name: "create_company", arguments: { name: "Globex", domain: "globex.io" } });
+
+    const byName = structured<{ companies: { name: string }[] }>(
+      await client.callTool({ name: "search_companies", arguments: { query: "acm" } }),
+    );
+    expect(byName.companies.map((c) => c.name)).toEqual(["Acme Corp"]);
+
+    const byDomain = structured<{ companies: { name: string }[] }>(
+      await client.callTool({ name: "search_companies", arguments: { query: "globex.i" } }),
+    );
+    expect(byDomain.companies.map((c) => c.name)).toEqual(["Globex"]);
+
+    const empty = structured<{ companies: unknown[] }>(
+      await client.callTool({ name: "search_companies", arguments: { query: "nomatch" } }),
+    );
+    expect(empty.companies).toEqual([]);
+  });
+
+  test("search_people finds by partial name or email, optionally scoped to company", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    const { company: c1 } = structured<{ company: { id: string } }>(
+      await client.callTool({ name: "create_company", arguments: { name: "Stripe", domain: "stripe.com" } }),
+    );
+    const { company: c2 } = structured<{ company: { id: string } }>(
+      await client.callTool({ name: "create_company", arguments: { name: "Linear", domain: "linear.app" } }),
+    );
+    await client.callTool({
+      name: "create_person",
+      arguments: { name: "Patrick Collison", email: "patrick@stripe.com", companyId: c1.id },
+    });
+    await client.callTool({
+      name: "create_person",
+      arguments: { name: "Karri Saarinen", email: "karri@linear.app", companyId: c2.id },
+    });
+
+    const byName = structured<{ people: { name: string }[] }>(
+      await client.callTool({ name: "search_people", arguments: { query: "patrick" } }),
+    );
+    expect(byName.people.map((p) => p.name)).toEqual(["Patrick Collison"]);
+
+    const byEmail = structured<{ people: { name: string }[] }>(
+      await client.callTool({ name: "search_people", arguments: { query: "linear.app" } }),
+    );
+    expect(byEmail.people.map((p) => p.name)).toEqual(["Karri Saarinen"]);
+
+    const scoped = structured<{ people: { name: string }[] }>(
+      await client.callTool({
+        name: "search_people",
+        arguments: { query: "ar", companyId: c2.id },
+      }),
+    );
+    expect(scoped.people.map((p) => p.name)).toEqual(["Karri Saarinen"]);
+  });
+
+  test("list_deals_for_company / get_deal / list_deals round-trip", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    const { company } = structured<{ company: { id: string } }>(
+      await client.callTool({ name: "create_company", arguments: { name: "Vercel", domain: "vercel.com" } }),
+    );
+    const { deal: d1 } = structured<{ deal: { id: string; stageId: string } }>(
+      await client.callTool({
+        name: "create_deal",
+        arguments: { companyId: company.id, name: "Pro plan", value: 12000 },
+      }),
+    );
+    const { deal: d2 } = structured<{ deal: { id: string } }>(
+      await client.callTool({
+        name: "create_deal",
+        arguments: { companyId: company.id, name: "Enterprise plan", value: 90000 },
+      }),
+    );
+
+    const onCompany = structured<{ deals: { id: string }[] }>(
+      await client.callTool({ name: "list_deals_for_company", arguments: { companyId: company.id } }),
+    );
+    expect(onCompany.deals.map((d) => d.id).sort()).toEqual([d1.id, d2.id].sort());
+
+    const single = structured<{ deal: { name: string } }>(
+      await client.callTool({ name: "get_deal", arguments: { id: d1.id } }),
+    );
+    expect(single.deal.name).toBe("Pro plan");
+
+    const all = structured<{ deals: { id: string }[] }>(
+      await client.callTool({ name: "list_deals", arguments: {} }),
+    );
+    expect(all.deals.length).toBe(2);
+
+    const inStage = structured<{ deals: { id: string }[] }>(
+      await client.callTool({ name: "list_deals", arguments: { stageId: d1.stageId } }),
+    );
+    expect(inStage.deals.length).toBe(2);
+  });
+
   test("cross-org access is rejected (org-scoped queries)", async () => {
     const orgA = await seedOrgWithPipeline("org_a");
     const orgB = await seedOrgWithPipeline("org_b");
@@ -201,14 +303,58 @@ describe("MCP tools", () => {
     const { company } = structured<{ company: { id: string } }>(
       await a.client.callTool({ name: "create_company", arguments: { name: "Acme", domain: "acme.com" } }),
     );
+    await a.client.callTool({
+      name: "create_person",
+      arguments: { name: "Alice", email: "alice@acme.com", companyId: company.id },
+    });
+    const { deal } = structured<{ deal: { id: string } }>(
+      await a.client.callTool({
+        name: "create_deal",
+        arguments: { companyId: company.id, name: "Acme expansion", value: 1000 },
+      }),
+    );
     await a.close();
 
     const b = await makeClient(orgB);
-    const fromB = structured<{ error?: string; company?: unknown }>(
-      await b.client.callTool({ name: "get_company", arguments: { id: company.id } }),
-    );
     close = b.close;
-    expect(fromB.error).toBe("not_found");
-    expect(fromB.company).toBeUndefined();
+
+    expect(
+      structured<{ error?: string }>(
+        await b.client.callTool({ name: "get_company", arguments: { id: company.id } }),
+      ).error,
+    ).toBe("not_found");
+
+    expect(
+      structured<{ companies: unknown[] }>(
+        await b.client.callTool({ name: "search_companies", arguments: { query: "acme" } }),
+      ).companies,
+    ).toEqual([]);
+
+    expect(
+      structured<{ people: unknown[] }>(
+        await b.client.callTool({ name: "search_people", arguments: { query: "alice" } }),
+      ).people,
+    ).toEqual([]);
+
+    expect(
+      structured<{ error?: string }>(
+        await b.client.callTool({ name: "get_deal", arguments: { id: deal.id } }),
+      ).error,
+    ).toBe("not_found");
+
+    expect(
+      structured<{ deals: unknown[] }>(
+        await b.client.callTool({ name: "list_deals", arguments: {} }),
+      ).deals,
+    ).toEqual([]);
+
+    expect(
+      structured<{ deals: unknown[] }>(
+        await b.client.callTool({
+          name: "list_deals_for_company",
+          arguments: { companyId: company.id },
+        }),
+      ).deals,
+    ).toEqual([]);
   });
 });
