@@ -37,4 +37,4 @@ jobs:
         env:
           DATABASE_URL: postgres://arin:arin@localhost:5434/arin_test
           BETTER_AUTH_SECRET: ci-secret-at-least-16-chars-long
-          BETTER_AUTH_URL: http://localhost:3000
+          APP_URL: http://localhost:3000
