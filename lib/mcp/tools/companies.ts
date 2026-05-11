@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { companies } from "@/db/schema/companies";
 import type { McpContext } from "../context";
@@ -119,6 +119,34 @@ export function registerCompanyTools(server: McpServer, ctx: McpContext): void {
         .returning();
       if (!row) return jsonResult({ error: "not_found" });
       return jsonResult({ company: row });
+    },
+  );
+
+  server.registerTool(
+    "search_companies",
+    {
+      title: "Search companies by name or domain",
+      description:
+        "Case-insensitive partial match across name and domain. Use this when you only have a fragment of a company name and don't know its domain.",
+      inputSchema: {
+        query: z.string().min(1),
+        limit: z.number().int().min(1).max(50).optional(),
+      },
+    },
+    async ({ query, limit }) => {
+      const pattern = `%${query}%`;
+      const rows = await ctx.db
+        .select()
+        .from(companies)
+        .where(
+          and(
+            eq(companies.organizationId, ctx.organizationId),
+            or(ilike(companies.name, pattern), ilike(companies.domain, pattern)),
+          ),
+        )
+        .orderBy(desc(companies.lastSignalAt))
+        .limit(limit ?? 20);
+      return jsonResult({ companies: rows });
     },
   );
 
