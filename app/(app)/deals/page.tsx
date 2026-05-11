@@ -1,7 +1,8 @@
-import { and, asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { companies } from "@/db/schema/companies";
-import { deals, pipelines, stages } from "@/db/schema/deals";
+import { deals } from "@/db/schema/deals";
+import { getDefaultPipeline, getStages } from "@/lib/data";
 import { requireOrgSession } from "@/lib/session";
 import { DealsView } from "./deals-view";
 
@@ -15,12 +16,8 @@ export default async function DealsPage({
   const sp = await searchParams;
   const view = sp.view === "board" ? "board" : "list";
 
-  const [pipelineRows, dealRows] = await Promise.all([
-    db()
-      .select()
-      .from(pipelines)
-      .where(and(eq(pipelines.organizationId, orgId), eq(pipelines.isDefault, true)))
-      .limit(1),
+  const [pipeline, dealRows] = await Promise.all([
+    getDefaultPipeline(orgId),
     db()
       .select({
         id: deals.id,
@@ -36,7 +33,6 @@ export default async function DealsPage({
       .innerJoin(companies, eq(deals.companyId, companies.id))
       .where(eq(deals.organizationId, orgId)),
   ]);
-  const pipeline = pipelineRows[0];
   if (!pipeline) {
     return (
       <div className="px-6 py-5 text-[13px] text-text-muted">
@@ -45,11 +41,7 @@ export default async function DealsPage({
     );
   }
 
-  const stageRows = await db()
-    .select()
-    .from(stages)
-    .where(eq(stages.pipelineId, pipeline.id))
-    .orderBy(asc(stages.order));
+  const stageRows = await getStages(pipeline.id, orgId);
 
   return (
     <DealsView
