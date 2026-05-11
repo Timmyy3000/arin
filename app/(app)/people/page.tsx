@@ -8,6 +8,8 @@ import { EngagementPill, LifecyclePill, PersonaPill } from "@/components/pills";
 import { relativeTime } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
 
+const ROW_LIMIT = 200;
+
 export default async function PeoplePage() {
   const session = await requireOrgSession();
   const rows = await db()
@@ -26,7 +28,8 @@ export default async function PeoplePage() {
     .from(people)
     .leftJoin(companies, eq(people.companyId, companies.id))
     .where(eq(people.organizationId, session.organizationId))
-    .orderBy(desc(people.lastInteractionAt));
+    .orderBy(desc(people.lastInteractionAt))
+    .limit(ROW_LIMIT + 1);
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -40,7 +43,7 @@ export default async function PeoplePage() {
               People
             </h1>
             <span className="rounded-full border border-border bg-surface-hover px-2 py-px text-[12px] text-text-subtle">
-              {rows.length}
+              {rows.length > ROW_LIMIT ? `${ROW_LIMIT}+` : rows.length}
             </span>
           </div>
           <div className="relative">
@@ -76,7 +79,7 @@ export default async function PeoplePage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((p) => (
+              {rows.slice(0, ROW_LIMIT).map((p) => (
                 <tr
                   key={p.id}
                   className="cursor-pointer border-b border-border-subtle transition hover:bg-surface-hover"
