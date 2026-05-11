@@ -216,6 +216,26 @@ export async function getEntityAudit(
   return rows as AuditRow[];
 }
 
+export async function getEntityCreateAudit(
+  db: Database,
+  organizationId: string,
+  entityType: EntityType,
+  entityId: string,
+): Promise<AuditRow | null> {
+  const rows = await baseSelect(db)
+    .where(
+      and(
+        eq(auditLog.organizationId, organizationId),
+        eq(auditLog.entityType, entityType),
+        eq(auditLog.entityId, entityId),
+        eq(auditLog.action, "create"),
+      ),
+    )
+    .orderBy(desc(auditLog.createdAt))
+    .limit(1);
+  return (rows[0] as AuditRow | undefined) ?? null;
+}
+
 export async function getEntityAuditBatch(
   db: Database,
   organizationId: string,

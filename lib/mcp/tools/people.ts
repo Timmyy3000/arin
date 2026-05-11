@@ -126,6 +126,7 @@ export function registerPeopleTools(server: McpServer, ctx: McpContext): void {
         })
         .where(and(eq(people.id, id), eq(people.organizationId, ctx.organizationId)))
         .returning();
+      if (!row) return jsonResult({ error: "not_found" });
       await recordAudit(ctx.db, {
         organizationId: ctx.organizationId,
         actor: ctx.actor,

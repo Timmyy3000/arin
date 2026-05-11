@@ -132,6 +132,7 @@ export function registerCompanyTools(server: McpServer, ctx: McpContext): void {
         .set({ ...patch, updatedAt: new Date() })
         .where(and(eq(companies.id, id), eq(companies.organizationId, ctx.organizationId)))
         .returning();
+      if (!row) return jsonResult({ error: "not_found" });
       await recordAudit(ctx.db, {
         organizationId: ctx.organizationId,
         actor: ctx.actor,
@@ -192,6 +193,7 @@ export function registerCompanyTools(server: McpServer, ctx: McpContext): void {
         .set({ temperature, temperatureUpdatedAt: new Date(), updatedAt: new Date() })
         .where(and(eq(companies.id, id), eq(companies.organizationId, ctx.organizationId)))
         .returning();
+      if (!row) return jsonResult({ error: "not_found" });
       await recordAudit(ctx.db, {
         organizationId: ctx.organizationId,
         actor: ctx.actor,

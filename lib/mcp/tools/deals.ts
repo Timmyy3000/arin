@@ -199,6 +199,7 @@ export function registerDealTools(server: McpServer, ctx: McpContext): void {
         })
         .where(and(eq(deals.id, id), eq(deals.organizationId, ctx.organizationId)))
         .returning();
+      if (!row) return jsonResult({ error: "not_found" });
       await recordAudit(ctx.db, {
         organizationId: ctx.organizationId,
         actor: ctx.actor,
@@ -241,6 +242,7 @@ export function registerDealTools(server: McpServer, ctx: McpContext): void {
         .set({ stageId, stageEnteredAt: new Date(), updatedAt: new Date() })
         .where(eq(deals.id, id))
         .returning();
+      if (!row) return jsonResult({ error: "not_found" });
       await recordAudit(ctx.db, {
         organizationId: ctx.organizationId,
         actor: ctx.actor,

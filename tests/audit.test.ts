@@ -7,6 +7,7 @@ import {
   diffChangedFields,
   getEntityAudit,
   getEntityAuditBatch,
+  getEntityCreateAudit,
   recordAudit,
   userActor,
   type Actor,
@@ -176,6 +177,48 @@ describe("audit", () => {
     expect(grouped.get("c_1")!.length).toBe(2);
     expect(grouped.get("c_2")!.length).toBe(2);
     expect(grouped.get("c_3")).toEqual([]);
+  });
+
+  test("getEntityCreateAudit returns the create event even when it's pushed past the recent-window limit", async () => {
+    const orgId = await seedOrg();
+    await seedUser("u_1", "Alice");
+    // The create row.
+    await recordAudit(db, {
+      organizationId: orgId,
+      actor: userActor("u_1", "Alice"),
+      entityType: "company",
+      entityId: "c_busy",
+      action: "create",
+      changes: { after: {} },
+    });
+    // Many updates after — enough to exceed the default limit of 20.
+    for (let i = 0; i < 25; i++) {
+      await recordAudit(db, {
+        organizationId: orgId,
+        actor: userActor("u_1", "Alice"),
+        entityType: "company",
+        entityId: "c_busy",
+        action: "update",
+        changes: { before: { v: i }, after: { v: i + 1 } },
+      });
+    }
+
+    const recent = await getEntityAudit(db, orgId, "company", "c_busy");
+    expect(recent.length).toBe(20);
+    // The oldest row in the recent window is an update, NOT the create —
+    // proves the bug the separate create-fetch addresses.
+    expect(recent[recent.length - 1]!.action).toBe("update");
+
+    const create = await getEntityCreateAudit(db, orgId, "company", "c_busy");
+    expect(create).not.toBeNull();
+    expect(create!.action).toBe("create");
+    expect(create!.actorUserName).toBe("Alice");
+  });
+
+  test("getEntityCreateAudit returns null when no create event exists", async () => {
+    const orgId = await seedOrg();
+    const create = await getEntityCreateAudit(db, orgId, "company", "c_unknown");
+    expect(create).toBeNull();
   });
 
   test("COALESCE: deleted user falls back to actor_user_name snapshot", async () => {

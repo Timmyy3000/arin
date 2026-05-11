@@ -29,6 +29,7 @@ export async function setTaskStatusAction(formData: FormData): Promise<void> {
     })
     .where(and(eq(tasks.id, id), eq(tasks.organizationId, session.organizationId)))
     .returning();
+  if (!row) return;
   await recordAudit(db(), {
     organizationId: session.organizationId,
     actor: userActor(session.user.id, session.user.name ?? null),

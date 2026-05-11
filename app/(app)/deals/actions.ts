@@ -41,6 +41,7 @@ export async function moveDealStageAction(input: {
     .set({ stageId, stageEnteredAt: new Date(), updatedAt: new Date() })
     .where(eq(deals.id, dealId))
     .returning();
+  if (!row) return { error: "deal_not_found" };
   await recordAudit(db(), {
     organizationId: session.organizationId,
     actor: userActor(session.user.id, session.user.name ?? null),

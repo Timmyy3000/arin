@@ -38,10 +38,14 @@ function summarize(row: SerializableAuditRow): string {
   return `Updated ${keys.slice(0, 3).join(", ")} +${keys.length - 3} more`;
 }
 
-export function EntityAuditClient({ rows }: { rows: SerializableAuditRow[] }) {
+type Props = {
+  created: SerializableAuditRow | null;
+  recent: SerializableAuditRow[];
+};
+
+export function EntityAuditClient({ created, recent }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const created = rows[rows.length - 1];
-  const updates = rows.filter((r) => r.action === "update");
+  const updates = recent.filter((r) => r.action === "update");
   const latestUpdate = updates[0];
 
   return (
@@ -52,9 +56,15 @@ export function EntityAuditClient({ rows }: { rows: SerializableAuditRow[] }) {
         className="flex w-full items-center justify-between gap-3 text-left text-text-subtle hover:text-text"
       >
         <span>
-          Created by{" "}
-          <span className="text-text">{actorLabel(created)}</span>{" "}
-          {relativeTime(new Date(created.createdAt))}
+          {created ? (
+            <>
+              Created by{" "}
+              <span className="text-text">{actorLabel(created)}</span>{" "}
+              {relativeTime(new Date(created.createdAt))}
+            </>
+          ) : (
+            <>Activity history</>
+          )}
           {updates.length > 0 ? (
             <>
               {" "}
@@ -74,7 +84,7 @@ export function EntityAuditClient({ rows }: { rows: SerializableAuditRow[] }) {
 
       {expanded ? (
         <ul className="mt-2 space-y-1.5 border-t border-border-subtle pt-2">
-          {rows.map((r) => (
+          {recent.map((r) => (
             <li key={r.id} className="flex items-start justify-between gap-3">
               <span className="flex-1 text-text">
                 {summarize(r)}{" "}

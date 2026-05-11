@@ -91,6 +91,7 @@ export function registerTaskTools(server: McpServer, ctx: McpContext): void {
         .set(set)
         .where(and(eq(tasks.id, id), eq(tasks.organizationId, ctx.organizationId)))
         .returning();
+      if (!row) return jsonResult({ error: "not_found" });
       await recordAudit(ctx.db, {
         organizationId: ctx.organizationId,
         actor: ctx.actor,
