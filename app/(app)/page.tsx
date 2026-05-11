@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { companies } from "@/db/schema/companies";
 import { deals, stages } from "@/db/schema/deals";
@@ -24,7 +24,7 @@ export default async function CockpitPage() {
   const session = await requireOrgSession();
   const orgId = session.organizationId;
 
-  const [openTasksRaw, totalDoneToday, atRisk] = await Promise.all([
+  const [openTasksRaw, doneCountRows, atRisk] = await Promise.all([
     db()
       .select({
         id: tasks.id,
@@ -42,7 +42,7 @@ export default async function CockpitPage() {
       .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "open")))
       .orderBy(desc(tasks.priority), asc(tasks.dueDate)),
     db()
-      .select({ id: tasks.id })
+      .select({ count: sql<number>`count(*)::int`.as("count") })
       .from(tasks)
       .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "done"))),
     db()
@@ -83,8 +83,9 @@ export default async function CockpitPage() {
     (grouped[t.priority as Priority] ?? grouped.low).push(t);
   }
 
-  const totalScope = openTasks.length + totalDoneToday.length;
-  const pct = totalScope === 0 ? 0 : Math.round((totalDoneToday.length / totalScope) * 100);
+  const doneCount = doneCountRows[0]?.count ?? 0;
+  const totalScope = openTasks.length + doneCount;
+  const pct = totalScope === 0 ? 0 : Math.round((doneCount / totalScope) * 100);
 
   const greeting =
     TODAY.getHours() < 12
@@ -112,11 +113,11 @@ export default async function CockpitPage() {
           </h1>
           <p className="mt-0.5 text-[12px] text-text-muted">
             {dayLabel}
-            {totalDoneToday.length > 0 ? (
+            {doneCount > 0 ? (
               <>
                 {" · "}
                 <span style={{ color: "oklch(0.65 0.14 155)" }}>
-                  {totalDoneToday.length} completed
+                  {doneCount} completed
                 </span>
               </>
             ) : null}
