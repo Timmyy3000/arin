@@ -15,11 +15,27 @@ export default async function DealsPage({
   const sp = await searchParams;
   const view = sp.view === "board" ? "board" : "list";
 
-  const pipelineRows = await db()
-    .select()
-    .from(pipelines)
-    .where(and(eq(pipelines.organizationId, orgId), eq(pipelines.isDefault, true)))
-    .limit(1);
+  const [pipelineRows, dealRows] = await Promise.all([
+    db()
+      .select()
+      .from(pipelines)
+      .where(and(eq(pipelines.organizationId, orgId), eq(pipelines.isDefault, true)))
+      .limit(1),
+    db()
+      .select({
+        id: deals.id,
+        name: deals.name,
+        value: deals.value,
+        stageId: deals.stageId,
+        stageEnteredAt: deals.stageEnteredAt,
+        companyId: deals.companyId,
+        companyName: companies.name,
+        temperature: companies.temperature,
+      })
+      .from(deals)
+      .innerJoin(companies, eq(deals.companyId, companies.id))
+      .where(eq(deals.organizationId, orgId)),
+  ]);
   const pipeline = pipelineRows[0];
   if (!pipeline) {
     return (
@@ -34,21 +50,6 @@ export default async function DealsPage({
     .from(stages)
     .where(eq(stages.pipelineId, pipeline.id))
     .orderBy(asc(stages.order));
-
-  const dealRows = await db()
-    .select({
-      id: deals.id,
-      name: deals.name,
-      value: deals.value,
-      stageId: deals.stageId,
-      stageEnteredAt: deals.stageEnteredAt,
-      companyId: deals.companyId,
-      companyName: companies.name,
-      temperature: companies.temperature,
-    })
-    .from(deals)
-    .innerJoin(companies, eq(deals.companyId, companies.id))
-    .where(eq(deals.organizationId, orgId));
 
   return (
     <DealsView
