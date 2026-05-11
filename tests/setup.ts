@@ -13,7 +13,7 @@ if (!testDatabaseUrl) {
 
 process.env.DATABASE_URL = testDatabaseUrl;
 process.env.BETTER_AUTH_SECRET ??= "test-secret-at-least-16-chars-long";
-process.env.BETTER_AUTH_URL ??= "http://localhost:3000";
+process.env.APP_URL ??= "http://localhost:3000";
 
 const client = postgres(testDatabaseUrl, { max: 1 });
 const db = drizzle(client);

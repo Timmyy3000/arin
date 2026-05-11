@@ -7,7 +7,7 @@ import * as schema from "@/db/schema";
 import { env } from "./env";
 
 export const auth = betterAuth({
-  baseURL: env.BETTER_AUTH_URL,
+  baseURL: env.APP_URL,
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db(), { provider: "pg", schema }),
   emailAndPassword: { enabled: true, autoSignIn: true },
