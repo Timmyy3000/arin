@@ -1,14 +1,18 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { db } from "@/db/client";
 import { env } from "@/lib/env";
 import { resolveServiceToken } from "@/lib/service-tokens";
 
-const JWKS = createRemoteJWKSet(new URL(`${env.APP_URL}/api/auth/jwks`));
-const MCP_RESOURCE = `${env.APP_URL}/api/mcp`;
+const defaultJwks = createRemoteJWKSet(new URL(`${env.APP_URL}/api/auth/jwks`));
+export const MCP_RESOURCE = `${env.APP_URL}/api/mcp`;
 
 export type McpAuthContext = { organizationId: string };
+export type AuthenticateOptions = { jwks?: JWTVerifyGetKey };
 
-export async function authenticate(request: Request): Promise<McpAuthContext | null> {
+export async function authenticate(
+  request: Request,
+  opts: AuthenticateOptions = {},
+): Promise<McpAuthContext | null> {
   const header = request.headers.get("authorization") ?? "";
   if (!header.toLowerCase().startsWith("bearer ")) return null;
   const token = header.slice(7).trim();
@@ -18,7 +22,7 @@ export async function authenticate(request: Request): Promise<McpAuthContext | n
   if (svc) return { organizationId: svc.organizationId };
 
   try {
-    const { payload } = await jwtVerify(token, JWKS, {
+    const { payload } = await jwtVerify(token, opts.jwks ?? defaultJwks, {
       audience: MCP_RESOURCE,
       issuer: env.APP_URL,
     });
