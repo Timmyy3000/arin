@@ -28,6 +28,11 @@ afterAll(async () => {
 
 export async function resetDb(): Promise<void> {
   const tables = [
+    "oauth_access_token",
+    "oauth_refresh_token",
+    "oauth_consent",
+    "oauth_client",
+    "jwks",
     "service_tokens",
     "app_settings",
     "notes",

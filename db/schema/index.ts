@@ -7,3 +7,4 @@ export * from "./tasks";
 export * from "./meetings";
 export * from "./notes";
 export * from "./settings";
+export * from "./oauth";
