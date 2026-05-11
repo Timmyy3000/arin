@@ -1,11 +1,14 @@
 import { cache } from "react";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { db } from "@/db/client";
 import { organization } from "@/db/schema/auth";
 import { companies } from "@/db/schema/companies";
+import { pipelines, stages } from "@/db/schema/deals";
 
 export const orgTag = (organizationId: string) => `org:${organizationId}`;
+export const pipelineTag = (organizationId: string) => `org:${organizationId}:pipelines`;
+export const stagesTag = (pipelineId: string) => `pipeline:${pipelineId}:stages`;
 
 export const getOrgName = cache(async (organizationId: string): Promise<string> => {
   return unstable_cache(
@@ -32,3 +35,37 @@ export const getCompanyById = cache(
     return rows[0] ?? null;
   },
 );
+
+export const getDefaultPipeline = cache(async (organizationId: string) => {
+  return unstable_cache(
+    async () => {
+      const rows = await db()
+        .select()
+        .from(pipelines)
+        .where(
+          and(
+            eq(pipelines.organizationId, organizationId),
+            eq(pipelines.isDefault, true),
+          ),
+        )
+        .limit(1);
+      return rows[0] ?? null;
+    },
+    ["default-pipeline", organizationId],
+    { tags: [pipelineTag(organizationId)] },
+  )();
+});
+
+export const getStages = cache(async (pipelineId: string, organizationId: string) => {
+  return unstable_cache(
+    async () => {
+      return db()
+        .select()
+        .from(stages)
+        .where(eq(stages.pipelineId, pipelineId))
+        .orderBy(asc(stages.order));
+    },
+    ["stages", pipelineId],
+    { tags: [stagesTag(pipelineId), pipelineTag(organizationId)] },
+  )();
+});
