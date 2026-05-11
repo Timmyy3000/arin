@@ -24,22 +24,54 @@ export default async function CockpitPage() {
   const session = await requireOrgSession();
   const orgId = session.organizationId;
 
-  const openTasks = (await db()
-    .select({
-      id: tasks.id,
-      title: tasks.title,
-      reasoning: tasks.reasoning,
-      priority: tasks.priority,
-      type: tasks.type,
-      status: tasks.status,
-      dueDate: tasks.dueDate,
-      companyId: tasks.companyId,
-      companyName: companies.name,
-    })
-    .from(tasks)
-    .leftJoin(companies, eq(tasks.companyId, companies.id))
-    .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "open")))
-    .orderBy(desc(tasks.priority), asc(tasks.dueDate))) as TaskRowData[];
+  const [openTasksRaw, totalDoneToday, atRisk] = await Promise.all([
+    db()
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        reasoning: tasks.reasoning,
+        priority: tasks.priority,
+        type: tasks.type,
+        status: tasks.status,
+        dueDate: tasks.dueDate,
+        companyId: tasks.companyId,
+        companyName: companies.name,
+      })
+      .from(tasks)
+      .leftJoin(companies, eq(tasks.companyId, companies.id))
+      .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "open")))
+      .orderBy(desc(tasks.priority), asc(tasks.dueDate)),
+    db()
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "done"))),
+    db()
+      .select({
+        id: deals.id,
+        name: deals.name,
+        value: deals.value,
+        stageEnteredAt: deals.stageEnteredAt,
+        stageName: stages.name,
+        companyId: deals.companyId,
+        companyName: companies.name,
+        temperature: companies.temperature,
+        lastSignalAt: companies.lastSignalAt,
+      })
+      .from(deals)
+      .innerJoin(companies, eq(deals.companyId, companies.id))
+      .innerJoin(stages, eq(deals.stageId, stages.id))
+      .where(
+        and(
+          eq(deals.organizationId, orgId),
+          inArray(companies.temperature, ["cold", "warm"]),
+          eq(stages.isWon, false),
+          eq(stages.isLost, false),
+        ),
+      )
+      .orderBy(deals.stageEnteredAt)
+      .limit(10),
+  ]);
+  const openTasks = openTasksRaw as TaskRowData[];
 
   const grouped: Record<Priority, TaskRowData[]> = {
     urgent: [],
@@ -51,39 +83,8 @@ export default async function CockpitPage() {
     (grouped[t.priority as Priority] ?? grouped.low).push(t);
   }
 
-  const totalDoneToday = await db()
-    .select({ id: tasks.id })
-    .from(tasks)
-    .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "done")));
-
   const totalScope = openTasks.length + totalDoneToday.length;
   const pct = totalScope === 0 ? 0 : Math.round((totalDoneToday.length / totalScope) * 100);
-
-  const atRisk = await db()
-    .select({
-      id: deals.id,
-      name: deals.name,
-      value: deals.value,
-      stageEnteredAt: deals.stageEnteredAt,
-      stageName: stages.name,
-      companyId: deals.companyId,
-      companyName: companies.name,
-      temperature: companies.temperature,
-      lastSignalAt: companies.lastSignalAt,
-    })
-    .from(deals)
-    .innerJoin(companies, eq(deals.companyId, companies.id))
-    .innerJoin(stages, eq(deals.stageId, stages.id))
-    .where(
-      and(
-        eq(deals.organizationId, orgId),
-        inArray(companies.temperature, ["cold", "warm"]),
-        eq(stages.isWon, false),
-        eq(stages.isLost, false),
-      ),
-    )
-    .orderBy(deals.stageEnteredAt)
-    .limit(10);
 
   const greeting =
     TODAY.getHours() < 12
