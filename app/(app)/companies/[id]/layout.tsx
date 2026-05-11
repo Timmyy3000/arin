@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
-import { db } from "@/db/client";
-import { companies } from "@/db/schema/companies";
 import { CompanyLogo } from "@/components/avatar-init";
 import { TemperaturePill } from "@/components/pills";
 import { CompanyTabs } from "./tabs";
+import { getCompanyById } from "@/lib/data";
 import { requireOrgSession } from "@/lib/session";
 
 export default async function CompanyDetailLayout({
@@ -19,9 +17,8 @@ export default async function CompanyDetailLayout({
   const session = await requireOrgSession();
   const { id } = await params;
 
-  const rows = await db().select().from(companies).where(eq(companies.id, id)).limit(1);
-  const company = rows[0];
-  if (!company || company.organizationId !== session.organizationId) notFound();
+  const company = await getCompanyById(id, session.organizationId);
+  if (!company) notFound();
 
   return (
     <div className="flex h-full flex-col bg-background">
