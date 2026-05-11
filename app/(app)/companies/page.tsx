@@ -34,30 +34,39 @@ export default async function CompaniesPage({
       ? and(eq(companies.organizationId, orgId), eq(companies.temperature, tempFilter))
       : eq(companies.organizationId, orgId);
 
-  const rows = await db()
-    .select({
-      id: companies.id,
-      name: companies.name,
-      domain: companies.domain,
-      industry: companies.industry,
-      employeeCount: companies.employeeCount,
-      temperature: companies.temperature,
-      lastSignalAt: companies.lastSignalAt,
-    })
-    .from(companies)
-    .where(where)
-    .orderBy(desc(companies.lastSignalAt));
-
   const { now, since } = thirtyDayWindow();
-  const signalBuckets = await db()
-    .select({
-      companyId: signals.companyId,
-      day: sql<string>`date_trunc('day', ${signals.occurredAt})::date`.as("day"),
-      count: sql<number>`count(*)::int`.as("count"),
-    })
-    .from(signals)
-    .where(and(eq(signals.organizationId, orgId), gte(signals.occurredAt, since)))
-    .groupBy(signals.companyId, sql`date_trunc('day', ${signals.occurredAt})::date`);
+  const [rows, signalBuckets, taskCounts] = await Promise.all([
+    db()
+      .select({
+        id: companies.id,
+        name: companies.name,
+        domain: companies.domain,
+        industry: companies.industry,
+        employeeCount: companies.employeeCount,
+        temperature: companies.temperature,
+        lastSignalAt: companies.lastSignalAt,
+      })
+      .from(companies)
+      .where(where)
+      .orderBy(desc(companies.lastSignalAt)),
+    db()
+      .select({
+        companyId: signals.companyId,
+        day: sql<string>`date_trunc('day', ${signals.occurredAt})::date`.as("day"),
+        count: sql<number>`count(*)::int`.as("count"),
+      })
+      .from(signals)
+      .where(and(eq(signals.organizationId, orgId), gte(signals.occurredAt, since)))
+      .groupBy(signals.companyId, sql`date_trunc('day', ${signals.occurredAt})::date`),
+    db()
+      .select({
+        companyId: tasks.companyId,
+        open: sql<number>`count(*)::int`.as("open"),
+      })
+      .from(tasks)
+      .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "open")))
+      .groupBy(tasks.companyId),
+  ]);
 
   const sparkByCompany = new Map<string, number[]>();
   const buckets = new Map<string, Map<string, number>>();
@@ -75,14 +84,6 @@ export default async function CompaniesPage({
     sparkByCompany.set(r.id, arr);
   }
 
-  const taskCounts = await db()
-    .select({
-      companyId: tasks.companyId,
-      open: sql<number>`count(*)::int`.as("open"),
-    })
-    .from(tasks)
-    .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "open")))
-    .groupBy(tasks.companyId);
   const tasksByCompany = new Map(
     taskCounts.filter((t) => t.companyId).map((t) => [t.companyId!, t.open]),
   );
