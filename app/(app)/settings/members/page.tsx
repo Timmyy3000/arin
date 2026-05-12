@@ -10,7 +10,7 @@ import { InviteControls, type ActiveInviteRow } from "./invite-controls";
 
 export default async function MembersSettingsPage() {
   const session = await requireOrgSession();
-  const [rows, callerRoleRows, activeInvites] = await Promise.all([
+  const [rows, callerRoleRows] = await Promise.all([
     db()
       .select({
         memberId: member.id,
@@ -33,16 +33,17 @@ export default async function MembersSettingsPage() {
         ),
       )
       .limit(1),
-    listActiveInviteLinks(db(), session.organizationId),
   ]);
   const callerRole = callerRoleRows[0]?.role ?? null;
   const canManage = callerRole === "owner" || callerRole === "admin";
-  const active: ActiveInviteRow[] = activeInvites.map((r) => ({
-    token: r.token,
-    url: `${env.APP_URL}/invite/${r.token}`,
-    createdAt: r.createdAt.toISOString(),
-    expiresAt: r.expiresAt.toISOString(),
-  }));
+  const active: ActiveInviteRow[] = canManage
+    ? (await listActiveInviteLinks(db(), session.organizationId)).map((r) => ({
+        token: r.token,
+        url: `${env.APP_URL}/invite/${r.token}`,
+        createdAt: r.createdAt.toISOString(),
+        expiresAt: r.expiresAt.toISOString(),
+      }))
+    : [];
 
   return (
     <div className="max-w-[560px] space-y-5">
