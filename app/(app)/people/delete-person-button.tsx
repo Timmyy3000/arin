@@ -27,7 +27,6 @@ export function DeletePersonButton({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setCounts(null);
     void previewPersonDeleteAction({ personId }).then((res) => {
       if (cancelled) return;
       if (res.ok) setCounts(res.data);
