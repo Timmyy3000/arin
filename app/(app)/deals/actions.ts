@@ -74,6 +74,7 @@ export async function deleteDealAction(input: {
   });
 
   revalidatePath("/deals");
+  revalidatePath("/tasks");
   revalidatePath(`/companies/${result.before.companyId}/deals`);
   revalidatePath(`/companies/${result.before.companyId}`);
   revalidatePath("/companies");

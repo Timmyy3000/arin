@@ -10,11 +10,8 @@ export async function deleteMeeting(
   meetingId: string,
 ): Promise<{ before: Meeting } | null> {
   const [before] = await db
-    .select()
-    .from(meetings)
+    .delete(meetings)
     .where(and(eq(meetings.id, meetingId), eq(meetings.organizationId, organizationId)))
-    .limit(1);
-  if (!before) return null;
-  await db.delete(meetings).where(eq(meetings.id, meetingId));
-  return { before };
+    .returning();
+  return before ? { before } : null;
 }

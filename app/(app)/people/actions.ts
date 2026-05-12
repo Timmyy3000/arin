@@ -57,6 +57,7 @@ export async function deletePersonAction(input: {
   });
 
   revalidatePath("/people");
+  revalidatePath("/tasks");
   if (result.before.companyId) {
     revalidatePath(`/companies/${result.before.companyId}/people`);
     revalidatePath(`/companies/${result.before.companyId}`);
