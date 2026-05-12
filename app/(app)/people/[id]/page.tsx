@@ -12,6 +12,7 @@ import { EngagementPill, PersonaPill } from "@/components/pills";
 import { TaskRow, type TaskRowData } from "@/components/task-row";
 import { relativeTime } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
+import { DeletePersonButton } from "../delete-person-button";
 
 export default async function PersonDetailPage({
   params,
@@ -70,9 +71,10 @@ export default async function PersonDetailPage({
           <span className="text-text-subtle">/</span>
           <span className="text-text">{person.name}</span>
         </div>
-        <div className="mb-3 flex items-center gap-3">
-          <Avatar name={person.name} size={40} />
-          <div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Avatar name={person.name} size={40} />
+            <div>
             <div className="flex items-center gap-2">
               <h1
                 className="text-[20px] font-semibold tracking-tight text-text"
@@ -98,7 +100,14 @@ export default async function PersonDetailPage({
                 </>
               ) : null}
             </div>
+            </div>
           </div>
+          <DeletePersonButton
+            personId={person.id}
+            personName={person.name}
+            variant="header"
+            redirectTo="/people"
+          />
         </div>
       </div>
 

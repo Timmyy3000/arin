@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { tasks } from "@/db/schema/tasks";
 import { diffChangedFields, recordAudit, userActor } from "@/lib/audit";
 import { requireOrgSession } from "@/lib/session";
+import { deleteTask } from "@/lib/tasks";
 
 const StatusSchema = z.enum(["open", "done", "dismissed"]);
 
@@ -41,4 +42,32 @@ export async function setTaskStatusAction(formData: FormData): Promise<void> {
   revalidatePath("/");
   revalidatePath("/tasks");
   revalidatePath("/companies");
+}
+
+export async function deleteTaskAction(input: {
+  taskId: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const session = await requireOrgSession();
+  const taskId = z.string().uuid().parse(input.taskId);
+
+  const result = await deleteTask(db(), session.organizationId, taskId);
+  if (!result) return { ok: false, message: "Task not found" };
+
+  await recordAudit(db(), {
+    organizationId: session.organizationId,
+    actor: userActor(session.user.id, session.user.name ?? null),
+    entityType: "task",
+    entityId: taskId,
+    action: "delete",
+    changes: { before: result.before },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/tasks");
+  revalidatePath("/companies");
+  if (result.before.companyId) {
+    revalidatePath(`/companies/${result.before.companyId}/tasks`);
+    revalidatePath(`/companies/${result.before.companyId}`);
+  }
+  return { ok: true };
 }

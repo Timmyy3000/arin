@@ -6,6 +6,7 @@ import { meetingAttendees, meetings } from "@/db/schema/meetings";
 import { AvatarStack, CompanyLogo } from "@/components/avatar-init";
 import { relativeTime } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
+import { DeleteMeetingButton } from "./delete-meeting-button";
 
 const ROW_LIMIT = 100;
 
@@ -84,13 +85,14 @@ export default async function MeetingsPage() {
                     {h}
                   </th>
                 ))}
+                <th className="w-8 px-3.5 py-2" />
               </tr>
             </thead>
             <tbody>
               {rows.map((m) => (
                 <tr
                   key={m.id}
-                  className="cursor-pointer border-b border-border-subtle transition hover:bg-surface-hover"
+                  className="group cursor-pointer border-b border-border-subtle transition hover:bg-surface-hover"
                 >
                   <td className="px-3.5 py-2.5">
                     <div className="flex items-center gap-2 text-[13px] font-medium text-text">
@@ -130,6 +132,9 @@ export default async function MeetingsPage() {
                   </td>
                   <td className="max-w-[280px] px-3.5 py-2.5 text-text-muted">
                     <div className="truncate">{m.summary ?? "—"}</div>
+                  </td>
+                  <td className="px-3.5 py-2.5">
+                    <DeleteMeetingButton meetingId={m.id} meetingTitle={m.title} />
                   </td>
                 </tr>
               ))}

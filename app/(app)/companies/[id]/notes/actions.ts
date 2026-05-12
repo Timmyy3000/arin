@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { notes } from "@/db/schema/notes";
 import { recordAudit, userActor } from "@/lib/audit";
+import { deleteNote } from "@/lib/notes";
 import { requireOrgSession } from "@/lib/session";
 
 const Schema = z.object({
@@ -38,4 +39,29 @@ export async function addCompanyNoteAction(formData: FormData): Promise<void> {
   });
   revalidatePath(`/companies/${companyId}/notes`);
   revalidatePath(`/companies/${companyId}`);
+}
+
+export async function deleteNoteAction(input: {
+  noteId: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const session = await requireOrgSession();
+  const noteId = z.string().uuid().parse(input.noteId);
+
+  const result = await deleteNote(db(), session.organizationId, noteId);
+  if (!result) return { ok: false, message: "Note not found" };
+
+  await recordAudit(db(), {
+    organizationId: session.organizationId,
+    actor: userActor(session.user.id, session.user.name ?? null),
+    entityType: "note",
+    entityId: noteId,
+    action: "delete",
+    changes: { before: result.before },
+  });
+
+  if (result.before.companyId) {
+    revalidatePath(`/companies/${result.before.companyId}/notes`);
+    revalidatePath(`/companies/${result.before.companyId}`);
+  }
+  return { ok: true };
 }

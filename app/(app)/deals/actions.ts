@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { deals, stages } from "@/db/schema/deals";
 import { diffChangedFields, recordAudit, userActor } from "@/lib/audit";
+import { deleteDeal } from "@/lib/deals";
 import { requireOrgSession } from "@/lib/session";
 
 const Schema = z.object({
@@ -51,5 +52,31 @@ export async function moveDealStageAction(input: {
     changes: diffChangedFields(before[0], row),
   });
   revalidatePath("/deals");
+  return { ok: true };
+}
+
+export async function deleteDealAction(input: {
+  dealId: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const session = await requireOrgSession();
+  const dealId = z.string().uuid().parse(input.dealId);
+
+  const result = await deleteDeal(db(), session.organizationId, dealId);
+  if (!result) return { ok: false, message: "Deal not found" };
+
+  await recordAudit(db(), {
+    organizationId: session.organizationId,
+    actor: userActor(session.user.id, session.user.name ?? null),
+    entityType: "deal",
+    entityId: dealId,
+    action: "delete",
+    changes: { before: result.before },
+  });
+
+  revalidatePath("/deals");
+  revalidatePath("/tasks");
+  revalidatePath(`/companies/${result.before.companyId}/deals`);
+  revalidatePath(`/companies/${result.before.companyId}`);
+  revalidatePath("/companies");
   return { ok: true };
 }

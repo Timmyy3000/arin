@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { CompanyLogo } from "@/components/avatar-init";
 import { StagePill, TemperaturePill } from "@/components/pills";
 import { money, relativeTime } from "@/lib/format";
+import { DeleteDealButton } from "./delete-deal-button";
 import { KanbanBoard, type KanbanDeal, type KanbanStage } from "./kanban";
 
 type DealRow = KanbanDeal;
@@ -191,13 +192,14 @@ export function DealsView({
                 <th className="px-3.5 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-text-subtle">
                   Temp
                 </th>
+                <th className="w-8 px-3.5 py-2" />
               </tr>
             </thead>
             <tbody>
               {filtered.map((d) => (
                 <tr
                   key={d.id}
-                  className="cursor-pointer border-b border-border-subtle transition hover:bg-surface-hover"
+                  className="group cursor-pointer border-b border-border-subtle transition hover:bg-surface-hover"
                 >
                   <td className="px-3.5 py-2.5 align-middle">
                     <span
@@ -235,12 +237,15 @@ export function DealsView({
                   <td className="px-3.5 py-2.5 align-middle">
                     <TemperaturePill value={d.temperature} />
                   </td>
+                  <td className="px-3.5 py-2.5 align-middle">
+                    <DeleteDealButton dealId={d.id} dealName={d.name} />
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-3.5 py-10 text-center text-[13px] text-text-muted"
                   >
                     No deals match this filter.

@@ -6,6 +6,7 @@ import { TemperaturePill } from "@/components/pills";
 import { CompanyTabs } from "./tabs";
 import { getCompanyById } from "@/lib/data";
 import { requireOrgSession } from "@/lib/session";
+import { DeleteCompanyButton } from "../delete-company-button";
 
 export default async function CompanyDetailLayout({
   children,
@@ -64,6 +65,7 @@ export default async function CompanyDetailLayout({
               </div>
             </div>
           </div>
+          <DeleteCompanyButton companyId={company.id} companyName={company.name} />
         </div>
         <CompanyTabs companyId={company.id} />
       </div>

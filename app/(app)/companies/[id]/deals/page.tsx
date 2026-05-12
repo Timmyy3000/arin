@@ -3,6 +3,7 @@ import { db } from "@/db/client";
 import { deals, stages } from "@/db/schema/deals";
 import { StagePill } from "@/components/pills";
 import { money, relativeTime } from "@/lib/format";
+import { DeleteDealButton } from "@/app/(app)/deals/delete-deal-button";
 
 export default async function DealsTab({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,13 +42,14 @@ export default async function DealsTab({ params }: { params: Promise<{ id: strin
                 {h}
               </th>
             ))}
+            <th className="w-8 px-3 py-2" />
           </tr>
         </thead>
         <tbody>
           {rows.map((d) => (
             <tr
               key={d.id}
-              className="border-b border-border-subtle transition hover:bg-surface-hover"
+              className="group border-b border-border-subtle transition hover:bg-surface-hover"
             >
               <td className="px-3 py-2.5 font-medium text-text">{d.name}</td>
               <td className="px-3 py-2.5">
@@ -61,6 +63,9 @@ export default async function DealsTab({ params }: { params: Promise<{ id: strin
               </td>
               <td className="px-3 py-2.5 text-[11px] text-text-muted">
                 {relativeTime(d.expectedCloseDate)}
+              </td>
+              <td className="px-3 py-2.5">
+                <DeleteDealButton dealId={d.id} dealName={d.name} />
               </td>
             </tr>
           ))}
