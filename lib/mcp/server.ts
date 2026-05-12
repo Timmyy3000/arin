@@ -7,6 +7,7 @@ import { registerNoteTools } from "./tools/notes";
 import { registerPeopleTools } from "./tools/people";
 import { registerResearchTools } from "./tools/research";
 import { registerSignalTools } from "./tools/signals";
+import { registerStageTools } from "./tools/stages";
 import { registerTaskTools } from "./tools/tasks";
 import type { McpContext } from "./context";
 
@@ -24,6 +25,7 @@ export function createMcpServer(ctx: McpContext): McpServer {
   registerMeetingTools(server, ctx);
   registerDealTools(server, ctx);
   registerNoteTools(server, ctx);
+  registerStageTools(server, ctx);
   registerAuditTools(server, ctx);
 
   return server;
