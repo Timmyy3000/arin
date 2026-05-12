@@ -26,6 +26,11 @@ export function StageRow({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(stage.name);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+
+  function startEdit() {
+    setName(stage.name);
+    setEditing(true);
+  }
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -183,7 +188,7 @@ export function StageRow({
       ) : (
         <button
           type="button"
-          onClick={() => setEditing(true)}
+          onClick={startEdit}
           className="flex flex-1 items-center gap-2 text-left"
         >
           <StagePill value={stage.name} color={stage.color} />

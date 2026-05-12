@@ -146,10 +146,11 @@ export function StagePill({
     );
   }
   const key = value.toLowerCase().replace(/\s+/g, "_");
-  const cfg = STAGE_CONFIG[key] ?? STAGE_CONFIG.prospecting!;
+  const matched = STAGE_CONFIG[key];
+  const tokens = matched ?? STAGE_CONFIG.prospecting!;
   return (
-    <span className={cn(basePill, className)} style={styleFromConfig(cfg.bg, cfg.text)}>
-      {cfg.label === key ? value : cfg.label}
+    <span className={cn(basePill, className)} style={styleFromConfig(tokens.bg, tokens.text)}>
+      {matched ? matched.label : value}
     </span>
   );
 }

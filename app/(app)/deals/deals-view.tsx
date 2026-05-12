@@ -257,7 +257,7 @@ export function DealsView({
       ) : (
         <div className="flex-1 overflow-hidden p-4">
           <KanbanBoard
-            stages={stages.map((s) => ({ id: s.id, name: s.name }))}
+            stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color }))}
             initialDeals={deals}
           />
         </div>
