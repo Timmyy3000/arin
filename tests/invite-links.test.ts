@@ -167,6 +167,23 @@ describe("invite links", () => {
     expect(memberRows).toHaveLength(1);
   });
 
+  test("consumeInviteLink rolls back the claim when the member insert fails", async () => {
+    const { orgId, adminId } = await seed();
+    const { token } = await createInviteLink(db, {
+      organizationId: orgId,
+      createdByUserId: adminId,
+    });
+    await expect(
+      consumeInviteLink(db, { token, userId: "user_does_not_exist" }),
+    ).rejects.toThrow();
+    const rows = await db
+      .select({ usedAt: orgInviteLink.usedAt, usedByUserId: orgInviteLink.usedByUserId })
+      .from(orgInviteLink)
+      .where(eq(orgInviteLink.token, token));
+    expect(rows[0]?.usedAt).toBeNull();
+    expect(rows[0]?.usedByUserId).toBeNull();
+  });
+
   test("consumeInviteLink returns null for an unknown / expired / used / revoked token", async () => {
     const { orgId, adminId, joinerId } = await seed();
     expect(await consumeInviteLink(db, { token: "missing", userId: joinerId })).toBeNull();

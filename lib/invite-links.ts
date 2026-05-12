@@ -67,44 +67,46 @@ export async function consumeInviteLink(
   db: Database,
   args: { token: string; userId: string },
 ): Promise<ConsumedInvite | null> {
-  const now = new Date();
-  const claimed = await db
-    .update(orgInviteLink)
-    .set({ usedAt: now, usedByUserId: args.userId })
-    .where(
-      and(
-        eq(orgInviteLink.token, args.token),
-        isNull(orgInviteLink.usedAt),
-        isNull(orgInviteLink.revokedAt),
-        gt(orgInviteLink.expiresAt, now),
-      ),
-    )
-    .returning({
-      organizationId: orgInviteLink.organizationId,
-      role: orgInviteLink.role,
-    });
-  const claim = claimed[0];
-  if (!claim) return null;
+  return db.transaction(async (tx) => {
+    const now = new Date();
+    const claimed = await tx
+      .update(orgInviteLink)
+      .set({ usedAt: now, usedByUserId: args.userId })
+      .where(
+        and(
+          eq(orgInviteLink.token, args.token),
+          isNull(orgInviteLink.usedAt),
+          isNull(orgInviteLink.revokedAt),
+          gt(orgInviteLink.expiresAt, now),
+        ),
+      )
+      .returning({
+        organizationId: orgInviteLink.organizationId,
+        role: orgInviteLink.role,
+      });
+    const claim = claimed[0];
+    if (!claim) return null;
 
-  const existing = await db
-    .select({ id: member.id })
-    .from(member)
-    .where(
-      and(
-        eq(member.userId, args.userId),
-        eq(member.organizationId, claim.organizationId),
-      ),
-    )
-    .limit(1);
-  if (existing.length === 0) {
-    await db.insert(member).values({
-      id: randomUUID(),
-      userId: args.userId,
-      organizationId: claim.organizationId,
-      role: claim.role,
-    });
-  }
-  return { organizationId: claim.organizationId, role: claim.role };
+    const existing = await tx
+      .select({ id: member.id })
+      .from(member)
+      .where(
+        and(
+          eq(member.userId, args.userId),
+          eq(member.organizationId, claim.organizationId),
+        ),
+      )
+      .limit(1);
+    if (existing.length === 0) {
+      await tx.insert(member).values({
+        id: randomUUID(),
+        userId: args.userId,
+        organizationId: claim.organizationId,
+        role: claim.role,
+      });
+    }
+    return { organizationId: claim.organizationId, role: claim.role };
+  });
 }
 
 export async function revokeInviteLink(
