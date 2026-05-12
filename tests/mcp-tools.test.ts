@@ -478,6 +478,101 @@ describe("MCP tools", () => {
     expect(empty.activity).toEqual([]);
   });
 
+  test("create_stage / update_stage / reorder_stage round-trip with audit rows", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    const ps = await db
+      .select({ id: pipelines.id })
+      .from(pipelines)
+      .where(eq(pipelines.organizationId, orgId))
+      .limit(1);
+    const pipelineId = ps[0]!.id;
+
+    const created = structured<{ stage: { id: string; order: number; color: string | null } }>(
+      await client.callTool({
+        name: "create_stage",
+        arguments: { pipelineId, name: "Discovery+", color: "indigo" },
+      }),
+    );
+    expect(created.stage.color).toBe("indigo");
+    expect(created.stage.order).toBe(2); // appended after the 2 seeded stages
+
+    const createAudit = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, created.stage.id));
+    expect(createAudit.length).toBe(1);
+    expect(createAudit[0]!.entityType).toBe("stage");
+    expect(createAudit[0]!.action).toBe("create");
+
+    const updated = structured<{ stage: { color: string | null } }>(
+      await client.callTool({
+        name: "update_stage",
+        arguments: { id: created.stage.id, color: null },
+      }),
+    );
+    expect(updated.stage.color).toBeNull();
+
+    const reordered = structured<{ moved: boolean; stage: { order: number } }>(
+      await client.callTool({
+        name: "reorder_stage",
+        arguments: { id: created.stage.id, direction: "up" },
+      }),
+    );
+    expect(reordered.moved).toBe(true);
+    expect(reordered.stage.order).toBe(1);
+  });
+
+  test("delete_stage migrates deals and audits each one", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    const allStages = await db.select().from(stages).orderBy(stages.order);
+    const sourceStage = allStages[0]!;
+    const destStage = allStages[1]!;
+
+    const company = structured<{ company: { id: string } }>(
+      await client.callTool({
+        name: "create_company",
+        arguments: { name: "Migrate Co" },
+      }),
+    );
+    const deal = structured<{ deal: { id: string } }>(
+      await client.callTool({
+        name: "create_deal",
+        arguments: { companyId: company.company.id, name: "D1", stageId: sourceStage.id },
+      }),
+    );
+
+    const result = structured<{ migrated_deal_count: number }>(
+      await client.callTool({
+        name: "delete_stage",
+        arguments: { id: sourceStage.id, destinationStageId: destStage.id },
+      }),
+    );
+    expect(result.migrated_deal_count).toBe(1);
+
+    const remaining = await db.select().from(stages).where(eq(stages.id, sourceStage.id));
+    expect(remaining.length).toBe(0);
+
+    const dealAudits = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, deal.deal.id));
+    const stageMigrationRow = dealAudits.find((r) => {
+      const c = r.changes as { before?: { stageId?: string }; after?: { stageId?: string } } | null;
+      return c?.before?.stageId === sourceStage.id && c?.after?.stageId === destStage.id;
+    });
+    expect(stageMigrationRow).toBeDefined();
+
+    const stageAudits = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, sourceStage.id));
+    expect(stageAudits.find((r) => r.action === "delete")).toBeDefined();
+  });
+
   test("cross-org access is rejected (org-scoped queries)", async () => {
     const orgA = await seedOrgWithPipeline("org_a");
     const orgB = await seedOrgWithPipeline("org_b");

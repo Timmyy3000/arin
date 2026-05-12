@@ -265,7 +265,11 @@ export async function listStagesForPipeline(
 
 function isUniqueViolation(err: unknown): boolean {
   if (typeof err !== "object" || err === null) return false;
-  const code = (err as { code?: unknown }).code;
-  return code === "23505";
+  const top = err as { code?: unknown; cause?: unknown };
+  if (top.code === "23505") return true;
+  if (typeof top.cause === "object" && top.cause !== null) {
+    return (top.cause as { code?: unknown }).code === "23505";
+  }
+  return false;
 }
 
