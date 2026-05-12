@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { signIn } from "@/lib/auth-client";
 
-export function SignInForm() {
+export function SignInForm({ inviteToken }: { inviteToken: string | null }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +21,7 @@ export function SignInForm() {
       setError(error.message ?? "Sign-in failed.");
       return;
     }
-    router.replace("/");
+    router.replace(inviteToken ? `/invite/${inviteToken}` : "/");
     router.refresh();
   }
 
