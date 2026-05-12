@@ -65,6 +65,7 @@ export const getStages = cache(async (pipelineId: string, organizationId: string
           pipelineId: stages.pipelineId,
           name: stages.name,
           order: stages.order,
+          color: stages.color,
           isWon: stages.isWon,
           isLost: stages.isLost,
           createdAt: stages.createdAt,
