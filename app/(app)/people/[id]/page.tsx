@@ -7,6 +7,7 @@ import { companies, people } from "@/db/schema/companies";
 import { signals } from "@/db/schema/signals";
 import { tasks } from "@/db/schema/tasks";
 import { Avatar, CompanyLogo } from "@/components/avatar-init";
+import { EntityAudit } from "@/components/entity-audit";
 import { EngagementPill, PersonaPill } from "@/components/pills";
 import { TaskRow, type TaskRowData } from "@/components/task-row";
 import { relativeTime } from "@/lib/format";
@@ -144,6 +145,17 @@ export default async function PersonDetailPage({
               ) : (
                 personTasks.map((t) => <TaskRow key={t.id} task={t} />)
               )}
+            </section>
+
+            <section>
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">
+                Activity
+              </div>
+              <EntityAudit
+                entityType="person"
+                entityId={id}
+                orgId={session.organizationId}
+              />
             </section>
           </div>
 

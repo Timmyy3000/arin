@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { research } from "@/db/schema/signals";
+import { diffChangedFields, recordAudit } from "@/lib/audit";
 import type { McpContext } from "../context";
 import { jsonResult } from "../server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -33,6 +34,17 @@ export function registerResearchTools(server: McpServer, ctx: McpContext): void 
       },
     },
     async (args) => {
+      const existing = await ctx.db
+        .select()
+        .from(research)
+        .where(
+          and(
+            eq(research.companyId, args.companyId),
+            eq(research.section, args.section),
+            eq(research.organizationId, ctx.organizationId),
+          ),
+        )
+        .limit(1);
       const [row] = await ctx.db
         .insert(research)
         .values({
@@ -51,6 +63,25 @@ export function registerResearchTools(server: McpServer, ctx: McpContext): void 
           },
         })
         .returning();
+      if (existing[0]) {
+        await recordAudit(ctx.db, {
+          organizationId: ctx.organizationId,
+          actor: ctx.actor,
+          entityType: "research",
+          entityId: row.id,
+          action: "update",
+          changes: diffChangedFields(existing[0], row),
+        });
+      } else {
+        await recordAudit(ctx.db, {
+          organizationId: ctx.organizationId,
+          actor: ctx.actor,
+          entityType: "research",
+          entityId: row.id,
+          action: "create",
+          changes: { after: row },
+        });
+      }
       return jsonResult({ research: row });
     },
   );

@@ -23,6 +23,7 @@ export async function issueServiceToken(
   db: Database,
   organizationId: string,
   name: string,
+  createdByUserId: string | null = null,
 ): Promise<IssuedServiceToken> {
   const id = randomUUID();
   const token = generateToken();
@@ -31,6 +32,7 @@ export async function issueServiceToken(
     organizationId,
     name,
     tokenHash: hashToken(token),
+    createdByUserId,
   });
   return { id, token };
 }
@@ -49,6 +51,8 @@ export async function revokeServiceToken(
 export type ResolvedServiceToken = {
   id: string;
   organizationId: string;
+  name: string;
+  createdByUserId: string | null;
 };
 
 export async function resolveServiceToken(
@@ -61,6 +65,8 @@ export async function resolveServiceToken(
     .select({
       id: serviceTokens.id,
       organizationId: serviceTokens.organizationId,
+      name: serviceTokens.name,
+      createdByUserId: serviceTokens.createdByUserId,
       revokedAt: serviceTokens.revokedAt,
     })
     .from(serviceTokens)
@@ -74,5 +80,10 @@ export async function resolveServiceToken(
     .set({ lastUsedAt: new Date() })
     .where(eq(serviceTokens.id, row.id));
 
-  return { id: row.id, organizationId: row.organizationId };
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    name: row.name,
+    createdByUserId: row.createdByUserId,
+  };
 }

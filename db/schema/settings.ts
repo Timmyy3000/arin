@@ -1,5 +1,5 @@
 import { jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { organization } from "./auth";
+import { organization, user } from "./auth";
 
 export const appSettings = pgTable(
   "app_settings",
@@ -21,6 +21,9 @@ export const serviceTokens = pgTable("service_tokens", {
     .references(() => organization.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   tokenHash: text("token_hash").notNull().unique(),
+  createdByUserId: text("created_by_user_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

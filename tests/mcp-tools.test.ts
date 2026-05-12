@@ -1,8 +1,10 @@
+import { eq } from "drizzle-orm";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createDb } from "@/db/client";
-import { organization } from "@/db/schema/auth";
+import { auditLog } from "@/db/schema/audit";
+import { organization, user } from "@/db/schema/auth";
 import { pipelines, stages } from "@/db/schema/deals";
 import { createMcpServer } from "@/lib/mcp/server";
 import { resetDb } from "./setup";
@@ -11,6 +13,11 @@ const db = createDb(process.env.TEST_DATABASE_URL!);
 
 async function seedOrgWithPipeline(orgId = "org_mcp"): Promise<string> {
   await db.insert(organization).values({ id: orgId, name: "MCP", slug: orgId });
+  const userId = `${orgId}_user`;
+  await db
+    .insert(user)
+    .values({ id: userId, name: "Test User", email: `${userId}@example.com` })
+    .onConflictDoNothing();
   const pipelineId = crypto.randomUUID();
   await db.insert(pipelines).values({ id: pipelineId, organizationId: orgId, name: "Sales", isDefault: true });
   await db.insert(stages).values([
@@ -22,7 +29,18 @@ async function seedOrgWithPipeline(orgId = "org_mcp"): Promise<string> {
 
 async function makeClient(orgId: string) {
   const [client, server] = InMemoryTransport.createLinkedPair();
-  const mcp = createMcpServer({ organizationId: orgId, db });
+  const mcp = createMcpServer({
+    organizationId: orgId,
+    db,
+    actor: {
+      type: "user",
+      userId: `${orgId}_user`,
+      userName: "Test User",
+      tokenId: null,
+      tokenName: null,
+      clientId: null,
+    },
+  });
   await mcp.connect(server);
   const c = new Client({ name: "test", version: "0.0.0" });
   await c.connect(client);
@@ -294,6 +312,170 @@ describe("MCP tools", () => {
       await client.callTool({ name: "list_deals", arguments: { stageId: d1.stageId } }),
     );
     expect(inStage.deals.length).toBe(2);
+  });
+
+  test("create_company writes an audit row with the actor", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    const created = structured<{ company: { id: string } }>(
+      await client.callTool({
+        name: "create_company",
+        arguments: { name: "AuditCo", domain: "audit.co" },
+      }),
+    );
+    const rows = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, created.company.id));
+    expect(rows.length).toBe(1);
+    const r = rows[0]!;
+    expect(r.entityType).toBe("company");
+    expect(r.action).toBe("create");
+    expect(r.actorType).toBe("user");
+    expect(r.actorUserId).toBe(`${orgId}_user`);
+    expect(r.actorUserName).toBe("Test User");
+  });
+
+  test("update_company audit changes contains only changed fields", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    const created = structured<{ company: { id: string } }>(
+      await client.callTool({
+        name: "create_company",
+        arguments: { name: "Diff Co", domain: "diff.co", industry: "Old" },
+      }),
+    );
+    await client.callTool({
+      name: "update_company",
+      arguments: { id: created.company.id, industry: "New" },
+    });
+    const rows = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, created.company.id));
+    const update = rows.find((r) => r.action === "update");
+    expect(update).toBeDefined();
+    const changes = update!.changes as {
+      before: Record<string, unknown>;
+      after: Record<string, unknown>;
+    };
+    expect(Object.keys(changes.before).sort()).toEqual(["industry", "updatedAt"]);
+    expect(changes.before.industry).toBe("Old");
+    expect(changes.after.industry).toBe("New");
+  });
+
+  test("add_meeting_attendees writes ONE audit row on the parent meeting", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    const co = structured<{ company: { id: string } }>(
+      await client.callTool({
+        name: "create_company",
+        arguments: { name: "MeetCo", domain: "meet.co" },
+      }),
+    );
+    const p1 = structured<{ person: { id: string } }>(
+      await client.callTool({
+        name: "create_person",
+        arguments: { name: "P1", companyId: co.company.id },
+      }),
+    );
+    const p2 = structured<{ person: { id: string } }>(
+      await client.callTool({
+        name: "create_person",
+        arguments: { name: "P2", companyId: co.company.id },
+      }),
+    );
+    const meeting = structured<{ meeting: { id: string } }>(
+      await client.callTool({
+        name: "create_meeting",
+        arguments: {
+          companyId: co.company.id,
+          title: "Kickoff",
+          scheduledAt: "2026-05-11T12:00:00Z",
+        },
+      }),
+    );
+    await client.callTool({
+      name: "add_meeting_attendees",
+      arguments: { meetingId: meeting.meeting.id, personIds: [p1.person.id, p2.person.id] },
+    });
+    const rows = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, meeting.meeting.id));
+    const updates = rows.filter((r) => r.action === "update");
+    expect(updates.length).toBe(1);
+    const changes = updates[0]!.changes as {
+      before: { attendees: string[] };
+      after: { attendees: string[] };
+    };
+    expect(changes.before.attendees).toEqual([]);
+    expect(changes.after.attendees.sort()).toEqual([p1.person.id, p2.person.id].sort());
+  });
+
+  test("list_recent_activity returns org-scoped rows newest-first and respects filters", async () => {
+    const orgId = await seedOrgWithPipeline();
+    const { client, close: c } = await makeClient(orgId);
+    close = c;
+    const a = structured<{ company: { id: string } }>(
+      await client.callTool({
+        name: "create_company",
+        arguments: { name: "First", domain: "first.example" },
+      }),
+    );
+    const b = structured<{ person: { id: string } }>(
+      await client.callTool({
+        name: "create_person",
+        arguments: { name: "Person One" },
+      }),
+    );
+
+    type Activity = {
+      activity: Array<{
+        entityType: string;
+        entityId: string;
+        actorUserId: string | null;
+      }>;
+    };
+
+    const all = structured<Activity>(
+      await client.callTool({ name: "list_recent_activity", arguments: {} }),
+    );
+    const ids = all.activity.map((r) => r.entityId);
+    expect(ids).toContain(a.company.id);
+    expect(ids).toContain(b.person.id);
+    // Newest first: the person was created after the company.
+    expect(all.activity[0]!.entityId).toBe(b.person.id);
+
+    const onlyCompanies = structured<Activity>(
+      await client.callTool({
+        name: "list_recent_activity",
+        arguments: { entityType: "company" },
+      }),
+    );
+    expect(onlyCompanies.activity.length).toBe(1);
+    expect(onlyCompanies.activity[0]!.entityId).toBe(a.company.id);
+
+    const byActor = structured<Activity>(
+      await client.callTool({
+        name: "list_recent_activity",
+        arguments: { actorUserId: `${orgId}_user` },
+      }),
+    );
+    expect(byActor.activity.length).toBeGreaterThanOrEqual(2);
+    for (const r of byActor.activity) expect(r.actorUserId).toBe(`${orgId}_user`);
+
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const empty = structured<Activity>(
+      await client.callTool({
+        name: "list_recent_activity",
+        arguments: { since: future },
+      }),
+    );
+    expect(empty.activity).toEqual([]);
   });
 
   test("cross-org access is rejected (org-scoped queries)", async () => {

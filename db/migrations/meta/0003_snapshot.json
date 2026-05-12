@@ -1,5 +1,5 @@
 {
-  "id": "91ff532a-fd17-4768-a440-81ea0958db50",
+  "id": "6a475fa4-e330-4d99-903f-43c4d9f0b6c8",
   "prevId": "bd310c2b-91a1-4d5c-928e-03f74976ca04",
   "version": "7",
   "dialect": "postgresql",
@@ -1964,6 +1964,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "last_used_at": {
           "name": "last_used_at",
           "type": "timestamp with time zone",
@@ -1997,6 +2003,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "service_tokens_created_by_user_id_user_id_fk": {
+          "name": "service_tokens_created_by_user_id_user_id_fk",
+          "tableFrom": "service_tokens",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2685,15 +2704,16 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.org_invite_link": {
-      "name": "org_invite_link",
+    "public.audit_log": {
+      "name": "audit_log",
       "schema": "",
       "columns": {
-        "token": {
-          "name": "token",
-          "type": "text",
+        "id": {
+          "name": "id",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
         "organization_id": {
           "name": "organization_id",
@@ -2701,40 +2721,63 @@
           "primaryKey": false,
           "notNull": true
         },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'member'"
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
+        "actor_type": {
+          "name": "actor_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "used_at": {
-          "name": "used_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "used_by_user_id": {
-          "name": "used_by_user_id",
+        "actor_user_id": {
+          "name": "actor_user_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
+        "actor_user_name": {
+          "name": "actor_user_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_token_id": {
+          "name": "actor_token_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_token_name": {
+          "name": "actor_token_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_client_id": {
+          "name": "actor_client_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changes": {
+          "name": "changes",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -2746,11 +2789,93 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "audit_log_org_created_idx": {
+          "name": "audit_log_org_created_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_log_org_actor_user_idx": {
+          "name": "audit_log_org_actor_user_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "actor_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_log_org_entity_created_idx": {
+          "name": "audit_log_org_entity_created_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
-        "org_invite_link_organization_id_organization_id_fk": {
-          "name": "org_invite_link_organization_id_organization_id_fk",
-          "tableFrom": "org_invite_link",
+        "audit_log_organization_id_organization_id_fk": {
+          "name": "audit_log_organization_id_organization_id_fk",
+          "tableFrom": "audit_log",
           "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
@@ -2761,25 +2886,25 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "org_invite_link_created_by_user_id_user_id_fk": {
-          "name": "org_invite_link_created_by_user_id_user_id_fk",
-          "tableFrom": "org_invite_link",
+        "audit_log_actor_user_id_user_id_fk": {
+          "name": "audit_log_actor_user_id_user_id_fk",
+          "tableFrom": "audit_log",
           "tableTo": "user",
           "columnsFrom": [
-            "created_by_user_id"
+            "actor_user_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "org_invite_link_used_by_user_id_user_id_fk": {
-          "name": "org_invite_link_used_by_user_id_user_id_fk",
-          "tableFrom": "org_invite_link",
-          "tableTo": "user",
+        "audit_log_actor_token_id_service_tokens_id_fk": {
+          "name": "audit_log_actor_token_id_service_tokens_id_fk",
+          "tableFrom": "audit_log",
+          "tableTo": "service_tokens",
           "columnsFrom": [
-            "used_by_user_id"
+            "actor_token_id"
           ],
           "columnsTo": [
             "id"

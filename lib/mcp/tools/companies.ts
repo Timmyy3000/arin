@@ -1,6 +1,7 @@
 import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { companies } from "@/db/schema/companies";
+import { diffChangedFields, recordAudit } from "@/lib/audit";
 import type { McpContext } from "../context";
 import { jsonResult } from "../server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -93,6 +94,14 @@ export function registerCompanyTools(server: McpServer, ctx: McpContext): void {
         .insert(companies)
         .values({ organizationId: ctx.organizationId, ...args })
         .returning();
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "company",
+        entityId: row.id,
+        action: "create",
+        changes: { after: row },
+      });
       return jsonResult({ company: row });
     },
   );
@@ -112,12 +121,26 @@ export function registerCompanyTools(server: McpServer, ctx: McpContext): void {
       },
     },
     async ({ id, ...patch }) => {
+      const before = await ctx.db
+        .select()
+        .from(companies)
+        .where(and(eq(companies.id, id), eq(companies.organizationId, ctx.organizationId)))
+        .limit(1);
+      if (!before[0]) return jsonResult({ error: "not_found" });
       const [row] = await ctx.db
         .update(companies)
         .set({ ...patch, updatedAt: new Date() })
         .where(and(eq(companies.id, id), eq(companies.organizationId, ctx.organizationId)))
         .returning();
       if (!row) return jsonResult({ error: "not_found" });
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "company",
+        entityId: row.id,
+        action: "update",
+        changes: diffChangedFields(before[0], row),
+      });
       return jsonResult({ company: row });
     },
   );
@@ -159,12 +182,26 @@ export function registerCompanyTools(server: McpServer, ctx: McpContext): void {
       inputSchema: { id: z.string().uuid(), temperature: TEMPERATURE },
     },
     async ({ id, temperature }) => {
+      const before = await ctx.db
+        .select()
+        .from(companies)
+        .where(and(eq(companies.id, id), eq(companies.organizationId, ctx.organizationId)))
+        .limit(1);
+      if (!before[0]) return jsonResult({ error: "not_found" });
       const [row] = await ctx.db
         .update(companies)
         .set({ temperature, temperatureUpdatedAt: new Date(), updatedAt: new Date() })
         .where(and(eq(companies.id, id), eq(companies.organizationId, ctx.organizationId)))
         .returning();
       if (!row) return jsonResult({ error: "not_found" });
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "company",
+        entityId: row.id,
+        action: "update",
+        changes: diffChangedFields(before[0], row),
+      });
       return jsonResult({ company: row });
     },
   );

@@ -1,6 +1,7 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { meetingAttendees, meetings } from "@/db/schema/meetings";
+import { recordAudit } from "@/lib/audit";
 import type { McpContext } from "../context";
 import { jsonResult } from "../server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -35,14 +36,23 @@ export function registerMeetingTools(server: McpServer, ctx: McpContext): void {
           recordingUrl: args.recordingUrl,
         })
         .returning();
-      if (args.attendeePersonIds?.length) {
+      const attendees = args.attendeePersonIds ?? [];
+      if (attendees.length) {
         await ctx.db.insert(meetingAttendees).values(
-          args.attendeePersonIds.map((personId) => ({
+          attendees.map((personId) => ({
             meetingId: meeting!.id,
             personId,
           })),
         );
       }
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "meeting",
+        entityId: meeting!.id,
+        action: "create",
+        changes: { after: { ...meeting, attendees } },
+      });
       return jsonResult({ meeting });
     },
   );
@@ -65,10 +75,33 @@ export function registerMeetingTools(server: McpServer, ctx: McpContext): void {
         .limit(1);
       if (!owned[0]) return jsonResult({ error: "not_found" });
 
+      const beforeRows = await ctx.db
+        .select({ personId: meetingAttendees.personId })
+        .from(meetingAttendees)
+        .where(eq(meetingAttendees.meetingId, meetingId));
+      const before = beforeRows.map((r) => r.personId).sort();
+
       await ctx.db
         .insert(meetingAttendees)
         .values(personIds.map((personId) => ({ meetingId, personId })))
         .onConflictDoNothing();
+
+      const afterRows = await ctx.db
+        .select({ personId: meetingAttendees.personId })
+        .from(meetingAttendees)
+        .where(eq(meetingAttendees.meetingId, meetingId));
+      const after = afterRows.map((r) => r.personId).sort();
+
+      if (before.join(",") !== after.join(",")) {
+        await recordAudit(ctx.db, {
+          organizationId: ctx.organizationId,
+          actor: ctx.actor,
+          entityType: "meeting",
+          entityId: meetingId,
+          action: "update",
+          changes: { before: { attendees: before }, after: { attendees: after } },
+        });
+      }
       return jsonResult({ ok: true });
     },
   );
@@ -91,6 +124,4 @@ export function registerMeetingTools(server: McpServer, ctx: McpContext): void {
       return jsonResult({ meetings: rows });
     },
   );
-
-  void inArray;
 }
