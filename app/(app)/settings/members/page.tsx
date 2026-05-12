@@ -1,42 +1,58 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, user } from "@/db/schema/auth";
 import { Avatar } from "@/components/avatar-init";
 import { Badge } from "@/components/pills";
+import { env } from "@/lib/env";
+import { listActiveInviteLinks } from "@/lib/invite-links";
 import { requireOrgSession } from "@/lib/session";
+import { InviteControls, type ActiveInviteRow } from "./invite-controls";
 
 export default async function MembersSettingsPage() {
   const session = await requireOrgSession();
-  const rows = await db()
-    .select({
-      memberId: member.id,
-      role: member.role,
-      createdAt: member.createdAt,
-      userId: user.id,
-      userName: user.name,
-      userEmail: user.email,
-    })
-    .from(member)
-    .innerJoin(user, eq(user.id, member.userId))
-    .where(eq(member.organizationId, session.organizationId));
+  const [rows, callerRoleRows, activeInvites] = await Promise.all([
+    db()
+      .select({
+        memberId: member.id,
+        role: member.role,
+        createdAt: member.createdAt,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+      })
+      .from(member)
+      .innerJoin(user, eq(user.id, member.userId))
+      .where(eq(member.organizationId, session.organizationId)),
+    db()
+      .select({ role: member.role })
+      .from(member)
+      .where(
+        and(
+          eq(member.userId, session.user.id),
+          eq(member.organizationId, session.organizationId),
+        ),
+      )
+      .limit(1),
+    listActiveInviteLinks(db(), session.organizationId),
+  ]);
+  const callerRole = callerRoleRows[0]?.role ?? null;
+  const canManage = callerRole === "owner" || callerRole === "admin";
+  const active: ActiveInviteRow[] = activeInvites.map((r) => ({
+    token: r.token,
+    url: `${env.APP_URL}/invite/${r.token}`,
+    createdAt: r.createdAt.toISOString(),
+    expiresAt: r.expiresAt.toISOString(),
+  }));
 
   return (
     <div className="max-w-[560px] space-y-5">
-      <div className="flex items-center justify-between">
-        <h2
-          className="text-base font-semibold tracking-tight text-text"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Members
-        </h2>
-        <button
-          type="button"
-          className="h-[30px] rounded-md bg-accent px-3 text-[12px] font-medium text-white opacity-60"
-          disabled
-        >
-          Invite member
-        </button>
-      </div>
+      <h2
+        className="text-base font-semibold tracking-tight text-text"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        Members
+      </h2>
+      <InviteControls appUrl={env.APP_URL} active={active} canManage={canManage} />
       <div className="overflow-hidden rounded-lg border border-border">
         <table className="w-full text-[12px]">
           <thead className="border-b border-border bg-surface">
@@ -75,9 +91,6 @@ export default async function MembersSettingsPage() {
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-text-subtle">
-        Inviting and removing members lands in Phase 4.
-      </p>
     </div>
   );
 }
