@@ -1,4 +1,15 @@
-import { boolean, integer, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  check,
+  integer,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { organization, user } from "./auth";
 import { companies } from "./companies";
 
@@ -25,11 +36,15 @@ export const stages = pgTable(
       .references(() => pipelines.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     order: integer("order").notNull(),
+    color: text("color"),
     isWon: boolean("is_won").notNull().default(false),
     isLost: boolean("is_lost").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("stages_pipeline_name_unique").on(table.pipelineId, table.name)],
+  (table) => [
+    uniqueIndex("stages_pipeline_name_unique").on(table.pipelineId, table.name),
+    check("stage_not_both_won_lost", sql`NOT (${table.isWon} AND ${table.isLost})`),
+  ],
 );
 
 export const deals = pgTable("deals", {

@@ -14,6 +14,8 @@ export const ENTITY_TYPES = [
   "signal",
   "research",
   "service_token",
+  "stage",
+  "pipeline",
 ] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 

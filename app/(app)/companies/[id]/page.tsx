@@ -44,6 +44,7 @@ export default async function OverviewTab({ params }: { params: Promise<{ id: st
         name: deals.name,
         value: deals.value,
         stageName: stages.name,
+        stageColor: stages.color,
       })
       .from(deals)
       .innerJoin(stages, eq(deals.stageId, stages.id))
@@ -169,7 +170,7 @@ export default async function OverviewTab({ params }: { params: Promise<{ id: st
                     <div>
                       <div className="font-medium text-text">{d.name}</div>
                       <div className="mt-0.5">
-                        <StagePill value={d.stageName} />
+                        <StagePill value={d.stageName} color={d.stageColor} />
                       </div>
                     </div>
                     <div className="font-mono text-[12px] tabular-nums text-text">

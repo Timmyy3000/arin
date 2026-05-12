@@ -52,6 +52,7 @@ export default async function CockpitPage() {
         value: deals.value,
         stageEnteredAt: deals.stageEnteredAt,
         stageName: stages.name,
+        stageColor: stages.color,
         companyId: deals.companyId,
         companyName: companies.name,
         temperature: companies.temperature,
@@ -219,7 +220,7 @@ export default async function CockpitPage() {
                           {money(d.value)}
                         </td>
                         <td className="px-3 py-2.5">
-                          <StagePill value={d.stageName} />
+                          <StagePill value={d.stageName} color={d.stageColor} />
                         </td>
                         <td
                           className="px-3 py-2.5 font-mono text-[11px]"

@@ -1,3 +1,4 @@
+import { isStageColor, STAGE_COLOR_TOKENS, type StageColor } from "@/lib/stage-colors";
 import { cn } from "@/lib/utils";
 
 const TEMP_CONFIG: Record<
@@ -126,19 +127,30 @@ export function PersonaPill({ value, className }: { value: string; className?: s
 
 export function StagePill({
   value,
+  color,
   className,
 }: {
   value: string | null | undefined;
+  color?: StageColor | string | null;
   className?: string;
 }) {
   if (!value) {
     return <span className={cn(basePill, "bg-surface-active text-text-subtle", className)}>—</span>;
   }
+  if (isStageColor(color)) {
+    const tokens = STAGE_COLOR_TOKENS[color];
+    return (
+      <span className={cn(basePill, className)} style={styleFromConfig(tokens.bg, tokens.text)}>
+        {value}
+      </span>
+    );
+  }
   const key = value.toLowerCase().replace(/\s+/g, "_");
-  const cfg = STAGE_CONFIG[key] ?? STAGE_CONFIG.prospecting!;
+  const matched = STAGE_CONFIG[key];
+  const tokens = matched ?? STAGE_CONFIG.prospecting!;
   return (
-    <span className={cn(basePill, className)} style={styleFromConfig(cfg.bg, cfg.text)}>
-      {cfg.label === key ? value : cfg.label}
+    <span className={cn(basePill, className)} style={styleFromConfig(tokens.bg, tokens.text)}>
+      {matched ? matched.label : value}
     </span>
   );
 }

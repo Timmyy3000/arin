@@ -56,6 +56,7 @@ export default async function DealsPage({
       stages={stageRows.map((s) => ({
         id: s.id,
         name: s.name,
+        color: s.color,
         isWon: s.isWon,
         isLost: s.isLost,
       }))}
