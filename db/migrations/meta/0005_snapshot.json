@@ -1,6 +1,6 @@
 {
-  "id": "22e527d3-3a72-4c8a-865a-e974c9d06a6f",
-  "prevId": "6a475fa4-e330-4d99-903f-43c4d9f0b6c8",
+  "id": "399ef332-19c2-49b5-8570-95513f69bcaa",
+  "prevId": "22e527d3-3a72-4c8a-865a-e974c9d06a6f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -231,7 +231,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "member_user_org_unique": {
+          "name": "member_user_org_unique",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "member_user_id_user_id_fk": {
           "name": "member_user_id_user_id_fk",

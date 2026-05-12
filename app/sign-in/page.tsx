@@ -2,9 +2,16 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { SignInForm } from "./sign-in-form";
 
-export default async function SignInPage() {
+type SearchParams = Promise<{ invite?: string }>;
+
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await getSession();
-  if (session) redirect("/");
+  const { invite } = await searchParams;
+  if (session) redirect(invite ? `/invite/${invite}` : "/");
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-[340px]">
@@ -27,7 +34,7 @@ export default async function SignInPage() {
             Sign in to Arin
           </div>
         </div>
-        <SignInForm />
+        <SignInForm inviteToken={invite ?? null} />
       </div>
     </div>
   );

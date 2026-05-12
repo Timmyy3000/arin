@@ -33,8 +33,15 @@
     {
       "idx": 4,
       "version": "7",
-      "when": 1778582834098,
-      "tag": "0004_stage-color-and-flag-check",
+      "when": 1778583372347,
+      "tag": "0004_add-org-invite-link",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778584083358,
+      "tag": "0005_add-member-user-org-unique",
       "breakpoints": true
     }
   ]
