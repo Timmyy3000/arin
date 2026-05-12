@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -6,6 +7,10 @@ import { organization } from "@/db/schema/auth";
 import { resolveInviteLink } from "@/lib/invite-links";
 import { getSession } from "@/lib/session";
 import { acceptInviteAction } from "./actions";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 type Params = Promise<{ token: string }>;
 type SearchParams = Promise<{ status?: string }>;
