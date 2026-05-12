@@ -7,9 +7,13 @@ import { AvatarStack, CompanyLogo } from "@/components/avatar-init";
 import { relativeTime } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
 
+const ROW_LIMIT = 100;
+
 export default async function MeetingsPage() {
   const session = await requireOrgSession();
-  const rows = await db()
+  const orgId = session.organizationId;
+
+  const rowsRaw = await db()
     .select({
       id: meetings.id,
       title: meetings.title,
@@ -22,9 +26,12 @@ export default async function MeetingsPage() {
     })
     .from(meetings)
     .innerJoin(companies, eq(meetings.companyId, companies.id))
-    .where(eq(meetings.organizationId, session.organizationId))
-    .orderBy(desc(meetings.scheduledAt));
+    .where(eq(meetings.organizationId, orgId))
+    .orderBy(desc(meetings.scheduledAt))
+    .limit(ROW_LIMIT + 1);
 
+  const truncated = rowsRaw.length > ROW_LIMIT;
+  const rows = rowsRaw.slice(0, ROW_LIMIT);
   const meetingIds = rows.map((m) => m.id);
   const attendeeRows = meetingIds.length
     ? await db()
@@ -129,6 +136,11 @@ export default async function MeetingsPage() {
             </tbody>
           </table>
         )}
+        {truncated ? (
+          <div className="px-6 py-3 text-center text-[11px] text-text-subtle">
+            Showing the {ROW_LIMIT} most recent meetings.
+          </div>
+        ) : null}
       </div>
     </div>
   );

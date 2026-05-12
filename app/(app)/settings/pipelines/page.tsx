@@ -1,40 +1,34 @@
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { pipelines, stages } from "@/db/schema/deals";
+import { pipelines } from "@/db/schema/deals";
 import { Badge } from "@/components/pills";
+import { getStages } from "@/lib/data";
 import { requireOrgSession } from "@/lib/session";
 
 export default async function PipelinesSettingsPage() {
   const session = await requireOrgSession();
+  const orgId = session.organizationId;
   const ps = await db()
     .select()
     .from(pipelines)
-    .where(eq(pipelines.organizationId, session.organizationId));
+    .where(eq(pipelines.organizationId, orgId));
 
-  const out: Array<{
-    id: string;
-    name: string;
-    isDefault: boolean;
-    stages: { id: string; name: string; isWon: boolean; isLost: boolean }[];
-  }> = [];
-  for (const p of ps) {
-    const sgs = await db()
-      .select()
-      .from(stages)
-      .where(eq(stages.pipelineId, p.id))
-      .orderBy(asc(stages.order));
-    out.push({
-      id: p.id,
-      name: p.name,
-      isDefault: p.isDefault,
-      stages: sgs.map((s) => ({
-        id: s.id,
-        name: s.name,
-        isWon: s.isWon,
-        isLost: s.isLost,
-      })),
-    });
-  }
+  const out = await Promise.all(
+    ps.map(async (p) => {
+      const sgs = await getStages(p.id, orgId);
+      return {
+        id: p.id,
+        name: p.name,
+        isDefault: p.isDefault,
+        stages: sgs.map((s) => ({
+          id: s.id,
+          name: s.name,
+          isWon: s.isWon,
+          isLost: s.isLost,
+        })),
+      };
+    }),
+  );
 
   return (
     <div className="max-w-[480px] space-y-6">
