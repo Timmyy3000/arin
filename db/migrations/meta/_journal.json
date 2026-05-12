@@ -43,6 +43,13 @@
       "when": 1778584083358,
       "tag": "0005_add-member-user-org-unique",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778592383831,
+      "tag": "0006_stage-color-and-flag-check",
+      "breakpoints": true
     }
   ]
 }
