@@ -35,8 +35,10 @@ export default async function DealsPage({
       .innerJoin(companies, eq(deals.companyId, companies.id))
       .where(eq(deals.organizationId, orgId))
       .orderBy(desc(deals.stageEnteredAt))
-      .limit(DEAL_LIMIT),
+      .limit(DEAL_LIMIT + 1),
   ]);
+  const truncated = dealRows.length > DEAL_LIMIT;
+  const visibleDeals = truncated ? dealRows.slice(0, DEAL_LIMIT) : dealRows;
   if (!pipeline) {
     return (
       <div className="px-6 py-5 text-[13px] text-text-muted">
@@ -57,7 +59,8 @@ export default async function DealsPage({
         isWon: s.isWon,
         isLost: s.isLost,
       }))}
-      deals={dealRows}
+      deals={visibleDeals}
+      truncatedAt={truncated ? DEAL_LIMIT : null}
     />
   );
 }
