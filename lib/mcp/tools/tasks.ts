@@ -1,6 +1,7 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { tasks } from "@/db/schema/tasks";
+import { diffChangedFields, recordAudit } from "@/lib/audit";
 import type { McpContext } from "../context";
 import { jsonResult } from "../server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -44,6 +45,14 @@ export function registerTaskTools(server: McpServer, ctx: McpContext): void {
           assigneeUserId: args.assigneeUserId,
         })
         .returning();
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "task",
+        entityId: row.id,
+        action: "create",
+        changes: { after: row },
+      });
       return jsonResult({ task: row });
     },
   );
@@ -65,6 +74,12 @@ export function registerTaskTools(server: McpServer, ctx: McpContext): void {
       },
     },
     async ({ id, dueDate, status, ...patch }) => {
+      const before = await ctx.db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.id, id), eq(tasks.organizationId, ctx.organizationId)))
+        .limit(1);
+      if (!before[0]) return jsonResult({ error: "not_found" });
       const set: Record<string, unknown> = { ...patch, updatedAt: new Date() };
       if (dueDate) set.dueDate = new Date(dueDate);
       if (status) {
@@ -77,6 +92,14 @@ export function registerTaskTools(server: McpServer, ctx: McpContext): void {
         .where(and(eq(tasks.id, id), eq(tasks.organizationId, ctx.organizationId)))
         .returning();
       if (!row) return jsonResult({ error: "not_found" });
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "task",
+        entityId: row.id,
+        action: "update",
+        changes: diffChangedFields(before[0], row),
+      });
       return jsonResult({ task: row });
     },
   );

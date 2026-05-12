@@ -2,6 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { companies } from "@/db/schema/companies";
 import { signals } from "@/db/schema/signals";
+import { recordAudit } from "@/lib/audit";
 import type { McpContext } from "../context";
 import { jsonResult } from "../server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -44,6 +45,14 @@ export function registerSignalTools(server: McpServer, ctx: McpContext): void {
         .where(
           and(eq(companies.id, args.companyId), eq(companies.organizationId, ctx.organizationId)),
         );
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "signal",
+        entityId: row.id,
+        action: "create",
+        changes: { after: row },
+      });
       return jsonResult({ signal: row });
     },
   );

@@ -19,7 +19,9 @@ async function mintJwt(opts: {
   expSecondsFromNow?: number;
 }): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + (opts.expSecondsFromNow ?? 3600);
-  return new SignJWT(opts.payload ?? { org_id: "org_jwt", sub: "user_1" })
+  return new SignJWT(
+    opts.payload ?? { org_id: "org_jwt", sub: "user_1", client_id: "test_client" },
+  )
     .setProtectedHeader({ alg: ALG, kid: opts.kid })
     .setIssuer(opts.issuer ?? APP_URL)
     .setAudience(opts.audience ?? MCP_RESOURCE)
@@ -96,7 +98,7 @@ describe("MCP dual-auth", () => {
     const token = await mintJwt({
       privateKey,
       kid: "k1",
-      payload: { org_id: "org_jwt", sub: "user_1" },
+      payload: { org_id: "org_jwt", sub: "user_1", client_id: "test_client" },
     });
     const ctx = await authenticate(bearer(token), { jwks });
     expect(ctx?.organizationId).toBe("org_jwt");

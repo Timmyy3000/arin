@@ -1,6 +1,7 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { deals, pipelines, stages } from "@/db/schema/deals";
+import { diffChangedFields, recordAudit } from "@/lib/audit";
 import type { McpContext } from "../context";
 import { jsonResult } from "../server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -156,6 +157,14 @@ export function registerDealTools(server: McpServer, ctx: McpContext): void {
           ownerUserId: args.ownerUserId,
         })
         .returning();
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "deal",
+        entityId: row.id,
+        action: "create",
+        changes: { after: row },
+      });
       return jsonResult({ deal: row });
     },
   );
@@ -174,6 +183,12 @@ export function registerDealTools(server: McpServer, ctx: McpContext): void {
       },
     },
     async ({ id, value, expectedCloseDate, ...patch }) => {
+      const before = await ctx.db
+        .select()
+        .from(deals)
+        .where(and(eq(deals.id, id), eq(deals.organizationId, ctx.organizationId)))
+        .limit(1);
+      if (!before[0]) return jsonResult({ error: "not_found" });
       const [row] = await ctx.db
         .update(deals)
         .set({
@@ -185,6 +200,14 @@ export function registerDealTools(server: McpServer, ctx: McpContext): void {
         .where(and(eq(deals.id, id), eq(deals.organizationId, ctx.organizationId)))
         .returning();
       if (!row) return jsonResult({ error: "not_found" });
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "deal",
+        entityId: row.id,
+        action: "update",
+        changes: diffChangedFields(before[0], row),
+      });
       return jsonResult({ deal: row });
     },
   );
@@ -198,19 +221,19 @@ export function registerDealTools(server: McpServer, ctx: McpContext): void {
       inputSchema: { id: z.string().uuid(), stageId: z.string().uuid() },
     },
     async ({ id, stageId }) => {
-      const dealRow = await ctx.db
-        .select({ pipelineId: deals.pipelineId })
+      const before = await ctx.db
+        .select()
         .from(deals)
         .where(and(eq(deals.id, id), eq(deals.organizationId, ctx.organizationId)))
         .limit(1);
-      if (!dealRow[0]) return jsonResult({ error: "not_found" });
+      if (!before[0]) return jsonResult({ error: "not_found" });
 
       const stageRow = await ctx.db
         .select({ pipelineId: stages.pipelineId })
         .from(stages)
         .where(eq(stages.id, stageId))
         .limit(1);
-      if (!stageRow[0] || stageRow[0].pipelineId !== dealRow[0].pipelineId) {
+      if (!stageRow[0] || stageRow[0].pipelineId !== before[0].pipelineId) {
         return jsonResult({ error: "stage_pipeline_mismatch" });
       }
 
@@ -219,6 +242,15 @@ export function registerDealTools(server: McpServer, ctx: McpContext): void {
         .set({ stageId, stageEnteredAt: new Date(), updatedAt: new Date() })
         .where(eq(deals.id, id))
         .returning();
+      if (!row) return jsonResult({ error: "not_found" });
+      await recordAudit(ctx.db, {
+        organizationId: ctx.organizationId,
+        actor: ctx.actor,
+        entityType: "deal",
+        entityId: row.id,
+        action: "update",
+        changes: diffChangedFields(before[0], row),
+      });
       return jsonResult({ deal: row });
     },
   );

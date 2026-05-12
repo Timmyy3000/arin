@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { deals, stages } from "@/db/schema/deals";
+import { diffChangedFields, recordAudit, userActor } from "@/lib/audit";
 import { requireOrgSession } from "@/lib/session";
 
 const Schema = z.object({
@@ -19,26 +20,36 @@ export async function moveDealStageAction(input: {
   const session = await requireOrgSession();
   const { dealId, stageId } = Schema.parse(input);
 
-  const dealRow = await db()
-    .select({ pipelineId: deals.pipelineId })
+  const before = await db()
+    .select()
     .from(deals)
     .where(and(eq(deals.id, dealId), eq(deals.organizationId, session.organizationId)))
     .limit(1);
-  if (!dealRow[0]) return { error: "deal_not_found" };
+  if (!before[0]) return { error: "deal_not_found" };
 
   const stageRow = await db()
     .select({ pipelineId: stages.pipelineId })
     .from(stages)
     .where(eq(stages.id, stageId))
     .limit(1);
-  if (!stageRow[0] || stageRow[0].pipelineId !== dealRow[0].pipelineId) {
+  if (!stageRow[0] || stageRow[0].pipelineId !== before[0].pipelineId) {
     return { error: "stage_pipeline_mismatch" };
   }
 
-  await db()
+  const [row] = await db()
     .update(deals)
     .set({ stageId, stageEnteredAt: new Date(), updatedAt: new Date() })
-    .where(eq(deals.id, dealId));
+    .where(eq(deals.id, dealId))
+    .returning();
+  if (!row) return { error: "deal_not_found" };
+  await recordAudit(db(), {
+    organizationId: session.organizationId,
+    actor: userActor(session.user.id, session.user.name ?? null),
+    entityType: "deal",
+    entityId: row.id,
+    action: "update",
+    changes: diffChangedFields(before[0], row),
+  });
   revalidatePath("/deals");
   return { ok: true };
 }

@@ -6,11 +6,12 @@ import { people } from "@/db/schema/companies";
 import { deals, stages } from "@/db/schema/deals";
 import { research, signals } from "@/db/schema/signals";
 import { tasks } from "@/db/schema/tasks";
+import { EntityAudit } from "@/components/entity-audit";
 import { PersonaPill, StagePill, TemperaturePill } from "@/components/pills";
 import { PriorityBars } from "@/components/priority-bars";
 import { TaskTypeIcon } from "@/components/task-type-icon";
-import { money, relativeTime } from "@/lib/format";
 import { getCompanyById } from "@/lib/data";
+import { money, relativeTime } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
 
 export default async function OverviewTab({ params }: { params: Promise<{ id: string }> }) {
@@ -216,6 +217,17 @@ export default async function OverviewTab({ params }: { params: Promise<{ id: st
               ))}
             </ul>
           )}
+        </section>
+
+        <section>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">
+            Activity
+          </div>
+          <EntityAudit
+            entityType="company"
+            entityId={id}
+            orgId={session.organizationId}
+          />
         </section>
       </div>
 

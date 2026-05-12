@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerAuditTools } from "./tools/audit";
 import { registerCompanyTools } from "./tools/companies";
 import { registerDealTools } from "./tools/deals";
 import { registerMeetingTools } from "./tools/meetings";
@@ -23,6 +24,7 @@ export function createMcpServer(ctx: McpContext): McpServer {
   registerMeetingTools(server, ctx);
   registerDealTools(server, ctx);
   registerNoteTools(server, ctx);
+  registerAuditTools(server, ctx);
 
   return server;
 }
