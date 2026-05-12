@@ -7,6 +7,7 @@ import { StagePill, TemperaturePill } from "@/components/pills";
 import { money, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { moveDealStageAction } from "./actions";
+import { DeleteDealButton } from "./delete-deal-button";
 
 export type KanbanDeal = {
   id: string;
@@ -107,29 +108,40 @@ export function KanbanBoard({
                 </div>
               ) : (
                 list.map((d) => (
-                  <Link
+                  <div
                     key={d.id}
-                    href={`/companies/${d.companyId}`}
-                    draggable
-                    onDragStart={(e) => onDragStart(e, d.id)}
-                    onDragEnd={onDragEnd}
                     className={cn(
-                      "block cursor-grab rounded-md border border-border bg-card/40 p-3 transition hover:bg-card/70 active:cursor-grabbing",
+                      "group relative rounded-md border border-border bg-card/40 transition hover:bg-card/70",
                       draggingId === d.id ? "opacity-40" : "",
                     )}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{d.companyName}</span>
-                      <TemperaturePill value={d.temperature} />
+                    <Link
+                      href={`/companies/${d.companyId}`}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, d.id)}
+                      onDragEnd={onDragEnd}
+                      className="block cursor-grab p-3 active:cursor-grabbing"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{d.companyName}</span>
+                        <TemperaturePill value={d.temperature} />
+                      </div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">{d.name}</div>
+                      <div className="mt-2 flex items-center justify-between text-xs">
+                        <span className="tabular-nums">{money(d.value)}</span>
+                        <span className="text-muted-foreground">
+                          {relativeTime(d.stageEnteredAt)}
+                        </span>
+                      </div>
+                    </Link>
+                    <div className="absolute right-1.5 top-1.5">
+                      <DeleteDealButton
+                        dealId={d.id}
+                        dealName={d.name}
+                        onDeleted={() => setDeals((cur) => cur.filter((x) => x.id !== d.id))}
+                      />
                     </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">{d.name}</div>
-                    <div className="mt-2 flex items-center justify-between text-xs">
-                      <span className="tabular-nums">{money(d.value)}</span>
-                      <span className="text-muted-foreground">
-                        {relativeTime(d.stageEnteredAt)}
-                      </span>
-                    </div>
-                  </Link>
+                  </div>
                 ))
               )}
             </div>
