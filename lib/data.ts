@@ -60,12 +60,26 @@ export const getStages = cache(async (pipelineId: string, organizationId: string
   return unstable_cache(
     async () => {
       return db()
-        .select()
+        .select({
+          id: stages.id,
+          pipelineId: stages.pipelineId,
+          name: stages.name,
+          order: stages.order,
+          isWon: stages.isWon,
+          isLost: stages.isLost,
+          createdAt: stages.createdAt,
+        })
         .from(stages)
-        .where(eq(stages.pipelineId, pipelineId))
+        .innerJoin(pipelines, eq(pipelines.id, stages.pipelineId))
+        .where(
+          and(
+            eq(stages.pipelineId, pipelineId),
+            eq(pipelines.organizationId, organizationId),
+          ),
+        )
         .orderBy(asc(stages.order));
     },
-    ["stages", pipelineId],
+    ["stages", pipelineId, organizationId],
     { tags: [stagesTag(pipelineId), pipelineTag(organizationId)] },
   )();
 });
