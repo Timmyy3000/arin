@@ -28,6 +28,8 @@ afterAll(async () => {
 
 export async function resetDb(): Promise<void> {
   const tables = [
+    "audit_log",
+    "org_invite_link",
     "oauth_consent_scope",
     "oauth_access_token",
     "oauth_refresh_token",

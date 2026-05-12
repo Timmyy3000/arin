@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { signIn } from "@/lib/auth-client";
+import { signUp } from "@/lib/auth-client";
 
-export function SignInForm({ inviteToken }: { inviteToken: string | null }) {
+export function SignUpForm({ inviteToken }: { inviteToken: string }) {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,13 +16,13 @@ export function SignInForm({ inviteToken }: { inviteToken: string | null }) {
     e.preventDefault();
     setError(null);
     setPending(true);
-    const { error } = await signIn.email({ email, password });
+    const { error } = await signUp.email({ name, email, password });
     setPending(false);
     if (error) {
-      setError(error.message ?? "Sign-in failed.");
+      setError(error.message ?? "Sign-up failed.");
       return;
     }
-    router.replace(inviteToken ? `/invite/${inviteToken}` : "/");
+    router.replace(`/invite/${inviteToken}`);
     router.refresh();
   }
 
@@ -29,7 +30,7 @@ export function SignInForm({ inviteToken }: { inviteToken: string | null }) {
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <div className="my-1 flex items-center gap-2.5 text-[11px] text-text-subtle">
         <div className="h-px flex-1 bg-border-subtle" />
-        sign in with email
+        create your account
         <div className="h-px flex-1 bg-border-subtle" />
       </div>
       {error ? (
@@ -45,6 +46,18 @@ export function SignInForm({ inviteToken }: { inviteToken: string | null }) {
         </div>
       ) : null}
       <div>
+        <label className="mb-1.5 block text-[12px] text-text-muted">Name</label>
+        <input
+          type="text"
+          autoComplete="name"
+          required
+          placeholder="Your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="h-[34px] w-full rounded-md border border-border bg-surface-hover px-2.5 text-[13px] text-text outline-none focus:border-accent"
+        />
+      </div>
+      <div>
         <label className="mb-1.5 block text-[12px] text-text-muted">Email</label>
         <input
           type="email"
@@ -57,14 +70,12 @@ export function SignInForm({ inviteToken }: { inviteToken: string | null }) {
         />
       </div>
       <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-[12px] text-text-muted">Password</label>
-          <span className="cursor-not-allowed text-[11px] text-text-subtle">Forgot?</span>
-        </div>
+        <label className="mb-1.5 block text-[12px] text-text-muted">Password</label>
         <input
           type="password"
-          autoComplete="current-password"
+          autoComplete="new-password"
           required
+          minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="h-[34px] w-full rounded-md border border-border bg-surface-hover px-2.5 text-[13px] text-text outline-none focus:border-accent"
@@ -75,7 +86,7 @@ export function SignInForm({ inviteToken }: { inviteToken: string | null }) {
         disabled={pending}
         className="mt-1 h-9 rounded-md bg-accent text-[13px] font-medium text-white transition disabled:opacity-60"
       >
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? "Creating account…" : "Create account"}
       </button>
     </form>
   );
