@@ -70,11 +70,9 @@ export function TaskRow({ task }: { task: TaskRowData }) {
         <span className="whitespace-nowrap text-[11px] text-text-subtle">
           {relativeTime(task.dueDate)}
         </span>
-        {task.status === "open" ? (
-          <div className="opacity-0 transition group-hover:opacity-100">
-            <TaskActions taskId={task.id} />
-          </div>
-        ) : null}
+        <div className="opacity-0 transition group-hover:opacity-100">
+          <TaskActions taskId={task.id} showStatusActions={task.status === "open"} />
+        </div>
       </div>
     </div>
   );
