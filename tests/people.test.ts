@@ -63,7 +63,7 @@ describe("lib/people", () => {
   test("previewPersonDelete counts cascading children correctly", async () => {
     const { orgId, personId } = await seed();
     const preview = await previewPersonDelete(db, orgId, personId);
-    expect(preview).toEqual({ tasks: 2, notes: 1, meetingAttendances: 1 });
+    expect(preview).toEqual({ tasks: 2, notes: 1 });
   });
 
   test("previewPersonDelete returns null for cross-org person", async () => {

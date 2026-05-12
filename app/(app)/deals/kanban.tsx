@@ -138,7 +138,10 @@ export function KanbanBoard({
                       <DeleteDealButton
                         dealId={d.id}
                         dealName={d.name}
-                        onDeleted={() => setDeals((cur) => cur.filter((x) => x.id !== d.id))}
+                        onDeleted={() => {
+                          setDeals((cur) => cur.filter((x) => x.id !== d.id));
+                          router.refresh();
+                        }}
                       />
                     </div>
                   </div>

@@ -25,25 +25,16 @@ export type CompanyCascadeCounts = {
   tasks: number;
 };
 
-async function fetchCompany(
-  db: Database,
-  organizationId: string,
-  companyId: string,
-): Promise<Company | null> {
-  const [row] = await db
-    .select()
-    .from(companies)
-    .where(and(eq(companies.id, companyId), eq(companies.organizationId, organizationId)))
-    .limit(1);
-  return row ?? null;
-}
-
 export async function previewCompanyDelete(
   db: Database,
   organizationId: string,
   companyId: string,
 ): Promise<CompanyCascadeCounts | null> {
-  const exists = await fetchCompany(db, organizationId, companyId);
+  const [exists] = await db
+    .select({ id: companies.id })
+    .from(companies)
+    .where(and(eq(companies.id, companyId), eq(companies.organizationId, organizationId)))
+    .limit(1);
   if (!exists) return null;
   const [dealRows, signalRows, meetingRows, noteRows, taskRows] = await Promise.all([
     db.select({ n: count() }).from(deals).where(eq(deals.companyId, companyId)),
@@ -66,10 +57,14 @@ export async function deleteCompany(
   organizationId: string,
   companyId: string,
 ): Promise<{ before: Company; children: CompanyCascadeChildren } | null> {
-  const before = await fetchCompany(db, organizationId, companyId);
-  if (!before) return null;
-
   return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select()
+      .from(companies)
+      .where(and(eq(companies.id, companyId), eq(companies.organizationId, organizationId)))
+      .limit(1);
+    if (!before) return null;
+
     const [dealIds, signalIds, meetingIds, noteIds, taskIds] = await Promise.all([
       tx.select({ id: deals.id }).from(deals).where(eq(deals.companyId, companyId)),
       tx.select({ id: signals.id }).from(signals).where(eq(signals.companyId, companyId)),

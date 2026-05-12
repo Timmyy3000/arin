@@ -7,7 +7,7 @@ import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { deletePersonAction, previewPersonDeleteAction } from "./actions";
 
-type Counts = { tasks: number; notes: number; meetingAttendances: number };
+type Counts = { tasks: number; notes: number };
 
 export function DeletePersonButton({
   personId,
@@ -102,12 +102,6 @@ function buildDescription(name: string, c: Counts): string {
   const parts: string[] = [];
   if (c.tasks) parts.push(`${c.tasks} task${c.tasks === 1 ? "" : "s"}`);
   if (c.notes) parts.push(`${c.notes} note${c.notes === 1 ? "" : "s"}`);
-  if (c.meetingAttendances)
-    parts.push(
-      `${c.meetingAttendances} meeting attendance${
-        c.meetingAttendances === 1 ? "" : "s"
-      }`,
-    );
   if (parts.length === 0) {
     return `${name} will be permanently deleted. Signals attributed to them will remain but lose the person link.`;
   }

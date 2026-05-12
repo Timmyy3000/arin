@@ -1,7 +1,6 @@
 import { and, count, eq } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import { people } from "@/db/schema/companies";
-import { meetingAttendees } from "@/db/schema/meetings";
 import { notes } from "@/db/schema/notes";
 import { tasks } from "@/db/schema/tasks";
 
@@ -15,41 +14,26 @@ export type PersonCascadeChildren = {
 export type PersonCascadeCounts = {
   tasks: number;
   notes: number;
-  meetingAttendances: number;
 };
-
-async function fetchPerson(
-  db: Database,
-  organizationId: string,
-  personId: string,
-): Promise<Person | null> {
-  const [row] = await db
-    .select()
-    .from(people)
-    .where(and(eq(people.id, personId), eq(people.organizationId, organizationId)))
-    .limit(1);
-  return row ?? null;
-}
 
 export async function previewPersonDelete(
   db: Database,
   organizationId: string,
   personId: string,
 ): Promise<PersonCascadeCounts | null> {
-  const exists = await fetchPerson(db, organizationId, personId);
+  const [exists] = await db
+    .select({ id: people.id })
+    .from(people)
+    .where(and(eq(people.id, personId), eq(people.organizationId, organizationId)))
+    .limit(1);
   if (!exists) return null;
-  const [taskCount, noteCount, attendanceCount] = await Promise.all([
+  const [taskCount, noteCount] = await Promise.all([
     db.select({ n: count() }).from(tasks).where(eq(tasks.personId, personId)),
     db.select({ n: count() }).from(notes).where(eq(notes.personId, personId)),
-    db
-      .select({ n: count() })
-      .from(meetingAttendees)
-      .where(eq(meetingAttendees.personId, personId)),
   ]);
   return {
     tasks: taskCount[0]?.n ?? 0,
     notes: noteCount[0]?.n ?? 0,
-    meetingAttendances: attendanceCount[0]?.n ?? 0,
   };
 }
 
@@ -58,10 +42,14 @@ export async function deletePerson(
   organizationId: string,
   personId: string,
 ): Promise<{ before: Person; children: PersonCascadeChildren } | null> {
-  const before = await fetchPerson(db, organizationId, personId);
-  if (!before) return null;
-
   return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select()
+      .from(people)
+      .where(and(eq(people.id, personId), eq(people.organizationId, organizationId)))
+      .limit(1);
+    if (!before) return null;
+
     const [taskIds, noteIds] = await Promise.all([
       tx.select({ id: tasks.id }).from(tasks).where(eq(tasks.personId, personId)),
       tx.select({ id: notes.id }).from(notes).where(eq(notes.personId, personId)),
