@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { companies } from "@/db/schema/companies";
 import { tasks } from "@/db/schema/tasks";
+
+const ROW_LIMIT = 500;
 import {
   PrioritySectionHeader,
   TaskRow,
@@ -26,29 +28,39 @@ export default async function TasksPage({
     ? (sp.status as Status)
     : "open";
 
-  const rows = (await db()
-    .select({
-      id: tasks.id,
-      title: tasks.title,
-      reasoning: tasks.reasoning,
-      priority: tasks.priority,
-      type: tasks.type,
-      status: tasks.status,
-      dueDate: tasks.dueDate,
-      companyId: tasks.companyId,
-      companyName: companies.name,
-    })
-    .from(tasks)
-    .leftJoin(companies, eq(tasks.companyId, companies.id))
-    .where(and(eq(tasks.organizationId, session.organizationId), eq(tasks.status, status)))
-    .orderBy(desc(tasks.priority), asc(tasks.dueDate))) as TaskRowData[];
-
-  const allCounts = await db()
-    .select({ status: tasks.status })
-    .from(tasks)
-    .where(eq(tasks.organizationId, session.organizationId));
-  const total = allCounts.length;
-  const done = allCounts.filter((r) => r.status === "done").length;
+  const [rowsRaw, countRows] = await Promise.all([
+    db()
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        reasoning: tasks.reasoning,
+        priority: tasks.priority,
+        type: tasks.type,
+        status: tasks.status,
+        dueDate: tasks.dueDate,
+        companyId: tasks.companyId,
+        companyName: companies.name,
+      })
+      .from(tasks)
+      .leftJoin(companies, eq(tasks.companyId, companies.id))
+      .where(
+        and(eq(tasks.organizationId, session.organizationId), eq(tasks.status, status)),
+      )
+      .orderBy(desc(tasks.priority), asc(tasks.dueDate))
+      .limit(ROW_LIMIT + 1),
+    db()
+      .select({
+        status: tasks.status,
+        count: sql<number>`count(*)::int`.as("count"),
+      })
+      .from(tasks)
+      .where(eq(tasks.organizationId, session.organizationId))
+      .groupBy(tasks.status),
+  ]);
+  const rows = rowsRaw as TaskRowData[];
+  const truncated = rows.length > ROW_LIMIT;
+  const total = countRows.reduce((sum, r) => sum + r.count, 0);
+  const done = countRows.find((r) => r.status === "done")?.count ?? 0;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
 
   const grouped: Record<Priority, TaskRowData[]> = {
@@ -57,8 +69,9 @@ export default async function TasksPage({
     medium: [],
     low: [],
   };
+  const visible = rows.slice(0, ROW_LIMIT);
   if (status === "open") {
-    for (const r of rows) {
+    for (const r of visible) {
       (grouped[r.priority as Priority] ?? grouped.low).push(r);
     }
   }
@@ -128,13 +141,18 @@ export default async function TasksPage({
               );
             })
           )
-        ) : rows.length === 0 ? (
+        ) : visible.length === 0 ? (
           <div className="px-3.5 py-10 text-center text-[13px] text-text-muted">
             No {status} tasks.
           </div>
         ) : (
-          rows.map((t) => <TaskRow key={t.id} task={t} />)
+          visible.map((t) => <TaskRow key={t.id} task={t} />)
         )}
+        {truncated ? (
+          <div className="px-3.5 py-3 text-center text-[11px] text-text-subtle">
+            Showing first {ROW_LIMIT} — narrow the status filter to see more.
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
+import { notFound } from "next/navigation";
 import { db } from "@/db/client";
-import { companies, people } from "@/db/schema/companies";
+import { people } from "@/db/schema/companies";
 import { deals, stages } from "@/db/schema/deals";
 import { research, signals } from "@/db/schema/signals";
 import { tasks } from "@/db/schema/tasks";
@@ -9,49 +10,52 @@ import { PersonaPill, StagePill, TemperaturePill } from "@/components/pills";
 import { PriorityBars } from "@/components/priority-bars";
 import { TaskTypeIcon } from "@/components/task-type-icon";
 import { money, relativeTime } from "@/lib/format";
+import { getCompanyById } from "@/lib/data";
+import { requireOrgSession } from "@/lib/session";
 
 export default async function OverviewTab({ params }: { params: Promise<{ id: string }> }) {
+  const session = await requireOrgSession();
   const { id } = await params;
-  const c = await db().select().from(companies).where(eq(companies.id, id)).limit(1);
-  const company = c[0]!;
+  const company = await getCompanyById(id, session.organizationId);
+  if (!company) notFound();
 
-  const overview = await db()
-    .select()
-    .from(research)
-    .where(and(eq(research.companyId, id), eq(research.section, "overview")))
-    .limit(1);
-
-  const recentSignals = await db()
-    .select()
-    .from(signals)
-    .where(eq(signals.companyId, id))
-    .orderBy(desc(signals.occurredAt))
-    .limit(5);
-
-  const topPeople = await db()
-    .select()
-    .from(people)
-    .where(eq(people.companyId, id))
-    .orderBy(desc(people.lastInteractionAt))
-    .limit(3);
-
-  const activeDeals = await db()
-    .select({
-      id: deals.id,
-      name: deals.name,
-      value: deals.value,
-      stageName: stages.name,
-    })
-    .from(deals)
-    .innerJoin(stages, eq(deals.stageId, stages.id))
-    .where(and(eq(deals.companyId, id), eq(stages.isWon, false), eq(stages.isLost, false)));
-
-  const openTasks = await db()
-    .select()
-    .from(tasks)
-    .where(and(eq(tasks.companyId, id), eq(tasks.status, "open")))
-    .orderBy(desc(tasks.priority))
-    .limit(5);
+  const [overview, recentSignals, topPeople, activeDeals, openTasks] = await Promise.all([
+    db()
+      .select()
+      .from(research)
+      .where(and(eq(research.companyId, id), eq(research.section, "overview")))
+      .limit(1),
+    db()
+      .select()
+      .from(signals)
+      .where(eq(signals.companyId, id))
+      .orderBy(desc(signals.occurredAt))
+      .limit(5),
+    db()
+      .select()
+      .from(people)
+      .where(eq(people.companyId, id))
+      .orderBy(desc(people.lastInteractionAt))
+      .limit(3),
+    db()
+      .select({
+        id: deals.id,
+        name: deals.name,
+        value: deals.value,
+        stageName: stages.name,
+      })
+      .from(deals)
+      .innerJoin(stages, eq(deals.stageId, stages.id))
+      .where(
+        and(eq(deals.companyId, id), eq(stages.isWon, false), eq(stages.isLost, false)),
+      ),
+    db()
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.companyId, id), eq(tasks.status, "open")))
+      .orderBy(desc(tasks.priority))
+      .limit(5),
+  ]);
 
   return (
     <div className="grid gap-6 px-6 py-5 lg:grid-cols-[1fr_280px]">

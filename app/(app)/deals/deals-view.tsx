@@ -41,11 +41,13 @@ export function DealsView({
   view,
   stages,
   deals,
+  truncatedAt,
 }: {
   pipelineName: string;
   view: "list" | "board";
   stages: (KanbanStage & { isWon: boolean; isLost: boolean })[];
   deals: DealRow[];
+  truncatedAt: number | null;
 }) {
   const [filter, setFilter] = useState<"all" | "at_risk" | "watch">("all");
   const [nowMs] = useState(() => Date.now());
@@ -95,7 +97,14 @@ export function DealsView({
               Deals
             </h1>
             <div className="flex flex-col leading-tight">
-              <span className="text-[11px] text-text-subtle">Total Pipeline</span>
+              <span className="text-[11px] text-text-subtle">
+                Total Pipeline
+                {truncatedAt ? (
+                  <span className="ml-1.5 text-text-subtle">
+                    · showing first {truncatedAt}
+                  </span>
+                ) : null}
+              </span>
               <span className="font-mono text-[14px] font-semibold text-text">
                 {enriched.length} · {money(totalValue)}
               </span>

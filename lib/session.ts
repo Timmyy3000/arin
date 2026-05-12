@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -5,17 +6,17 @@ import { db } from "@/db/client";
 import { member } from "@/db/schema/auth";
 import { auth } from "./auth";
 
-export async function getSession() {
+export const getSession = cache(async () => {
   return auth.api.getSession({ headers: await headers() });
-}
+});
 
-export async function requireSession() {
+export const requireSession = cache(async () => {
   const session = await getSession();
   if (!session) redirect("/sign-in");
   return session;
-}
+});
 
-export async function requireOrgSession() {
+export const requireOrgSession = cache(async () => {
   const session = await requireSession();
   let organizationId = session.session.activeOrganizationId ?? null;
 
@@ -30,4 +31,4 @@ export async function requireOrgSession() {
 
   if (!organizationId) redirect("/onboarding");
   return { ...session, organizationId };
-}
+});

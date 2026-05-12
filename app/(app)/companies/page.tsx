@@ -11,6 +11,8 @@ import { TemperaturePill } from "@/components/pills";
 import { isoDay, relativeTime, thirtyDayWindow } from "@/lib/format";
 import { requireOrgSession } from "@/lib/session";
 
+const ROW_LIMIT = 200;
+
 const TEMP_FILTERS = [
   { v: "all", label: "All" },
   { v: "cold", label: "Cold" },
@@ -34,30 +36,40 @@ export default async function CompaniesPage({
       ? and(eq(companies.organizationId, orgId), eq(companies.temperature, tempFilter))
       : eq(companies.organizationId, orgId);
 
-  const rows = await db()
-    .select({
-      id: companies.id,
-      name: companies.name,
-      domain: companies.domain,
-      industry: companies.industry,
-      employeeCount: companies.employeeCount,
-      temperature: companies.temperature,
-      lastSignalAt: companies.lastSignalAt,
-    })
-    .from(companies)
-    .where(where)
-    .orderBy(desc(companies.lastSignalAt));
-
   const { now, since } = thirtyDayWindow();
-  const signalBuckets = await db()
-    .select({
-      companyId: signals.companyId,
-      day: sql<string>`date_trunc('day', ${signals.occurredAt})::date`.as("day"),
-      count: sql<number>`count(*)::int`.as("count"),
-    })
-    .from(signals)
-    .where(and(eq(signals.organizationId, orgId), gte(signals.occurredAt, since)))
-    .groupBy(signals.companyId, sql`date_trunc('day', ${signals.occurredAt})::date`);
+  const [rows, signalBuckets, taskCounts] = await Promise.all([
+    db()
+      .select({
+        id: companies.id,
+        name: companies.name,
+        domain: companies.domain,
+        industry: companies.industry,
+        employeeCount: companies.employeeCount,
+        temperature: companies.temperature,
+        lastSignalAt: companies.lastSignalAt,
+      })
+      .from(companies)
+      .where(where)
+      .orderBy(desc(companies.lastSignalAt))
+      .limit(ROW_LIMIT + 1),
+    db()
+      .select({
+        companyId: signals.companyId,
+        day: sql<string>`date_trunc('day', ${signals.occurredAt})::date`.as("day"),
+        count: sql<number>`count(*)::int`.as("count"),
+      })
+      .from(signals)
+      .where(and(eq(signals.organizationId, orgId), gte(signals.occurredAt, since)))
+      .groupBy(signals.companyId, sql`date_trunc('day', ${signals.occurredAt})::date`),
+    db()
+      .select({
+        companyId: tasks.companyId,
+        open: sql<number>`count(*)::int`.as("open"),
+      })
+      .from(tasks)
+      .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "open")))
+      .groupBy(tasks.companyId),
+  ]);
 
   const sparkByCompany = new Map<string, number[]>();
   const buckets = new Map<string, Map<string, number>>();
@@ -75,14 +87,6 @@ export default async function CompaniesPage({
     sparkByCompany.set(r.id, arr);
   }
 
-  const taskCounts = await db()
-    .select({
-      companyId: tasks.companyId,
-      open: sql<number>`count(*)::int`.as("open"),
-    })
-    .from(tasks)
-    .where(and(eq(tasks.organizationId, orgId), eq(tasks.status, "open")))
-    .groupBy(tasks.companyId);
   const tasksByCompany = new Map(
     taskCounts.filter((t) => t.companyId).map((t) => [t.companyId!, t.open]),
   );
@@ -98,7 +102,9 @@ export default async function CompaniesPage({
             Companies
           </h1>
           <span className="text-[12px] text-text-subtle">
-            {rows.length} accounts
+            {rows.length > ROW_LIMIT
+              ? `Showing ${ROW_LIMIT}+ accounts`
+              : `${rows.length} accounts`}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -148,7 +154,7 @@ export default async function CompaniesPage({
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.slice(0, ROW_LIMIT).map((r) => (
                 <tr
                   key={r.id}
                   className="cursor-pointer border-b border-border-subtle transition hover:bg-surface-hover"
