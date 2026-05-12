@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { organization } from "@/db/schema/auth";
+import { member, organization } from "@/db/schema/auth";
 import { resolveInviteLink } from "@/lib/invite-links";
 import { getSession } from "@/lib/session";
-import { acceptInviteAction } from "./actions";
+import { acceptInviteAction, switchToOrgAction } from "./actions";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -54,36 +54,59 @@ export default async function AcceptInvitePage({
     redirect(`/sign-up?invite=${encodeURIComponent(token)}`);
   }
 
-  const orgRows = await db()
-    .select({ name: organization.name })
-    .from(organization)
-    .where(eq(organization.id, resolved.organizationId))
-    .limit(1);
+  const [orgRows, existingMembership] = await Promise.all([
+    db()
+      .select({ name: organization.name })
+      .from(organization)
+      .where(eq(organization.id, resolved.organizationId))
+      .limit(1),
+    db()
+      .select({ id: member.id })
+      .from(member)
+      .where(
+        and(
+          eq(member.userId, session.user.id),
+          eq(member.organizationId, resolved.organizationId),
+        ),
+      )
+      .limit(1),
+  ]);
   const orgName = orgRows[0]?.name ?? "this workspace";
+  const alreadyMember = existingMembership.length > 0;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-[420px] rounded-xl border border-border bg-surface px-7 py-6">
         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">
-          You&apos;ve been invited
+          {alreadyMember ? "Already a member" : "You've been invited"}
         </div>
         <h2
           className="mb-1.5 text-[22px] font-semibold tracking-tight text-text"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          Join {orgName}
+          {alreadyMember ? `You're in ${orgName}` : `Join ${orgName}`}
         </h2>
         <p className="mb-5 text-[13px] leading-relaxed text-text-muted">
-          Signed in as <span className="text-text">{session.user.email}</span>. Accepting
-          will add your account to this workspace as a member.
+          Signed in as <span className="text-text">{session.user.email}</span>.{" "}
+          {alreadyMember
+            ? "Your account already has access to this workspace."
+            : "Accepting will add your account to this workspace as a member."}
         </p>
-        <form action={acceptInviteAction} className="flex flex-col gap-2">
+        <form
+          action={alreadyMember ? switchToOrgAction : acceptInviteAction}
+          className="flex flex-col gap-2"
+        >
           <input type="hidden" name="token" value={token} />
+          <input
+            type="hidden"
+            name="organization_id"
+            value={resolved.organizationId}
+          />
           <button
             type="submit"
             className="h-9 rounded-md bg-accent text-[13px] font-medium text-white transition"
           >
-            Accept and join {orgName}
+            {alreadyMember ? `Open ${orgName}` : `Accept and join ${orgName}`}
           </button>
           <Link
             href="/"
