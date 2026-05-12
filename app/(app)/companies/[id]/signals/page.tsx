@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { signals } from "@/db/schema/signals";
 import { relativeTime } from "@/lib/format";
+import { DeleteSignalButton } from "./delete-signal-button";
 
 export default async function SignalsTab({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,7 +23,7 @@ export default async function SignalsTab({ params }: { params: Promise<{ id: str
   return (
     <ol className="px-6 py-5">
       {rows.map((s) => (
-        <li key={s.id} className="flex gap-3.5 border-b border-border-subtle py-3.5">
+        <li key={s.id} className="group flex gap-3.5 border-b border-border-subtle py-3.5">
           <div
             className="mt-1 h-3 w-[3px] shrink-0 rounded"
             style={{ background: "oklch(0.65 0.12 250)" }}
@@ -30,9 +31,12 @@ export default async function SignalsTab({ params }: { params: Promise<{ id: str
           <div className="flex-1">
             <div className="flex items-baseline justify-between gap-3">
               <h4 className="text-[13px] font-medium text-text">{s.title}</h4>
-              <span className="shrink-0 text-[11px] text-text-subtle">
-                {relativeTime(s.occurredAt)}
-              </span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <span className="text-[11px] text-text-subtle">
+                  {relativeTime(s.occurredAt)}
+                </span>
+                <DeleteSignalButton signalId={s.id} signalTitle={s.title} />
+              </div>
             </div>
             <div className="mt-0.5 text-[10px] uppercase tracking-wider text-text-subtle">
               {s.type.replace(/_/g, " ")}
