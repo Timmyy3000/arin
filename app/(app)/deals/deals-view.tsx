@@ -45,7 +45,7 @@ export function DealsView({
 }: {
   pipelineName: string;
   view: "list" | "board";
-  stages: (KanbanStage & { isWon: boolean; isLost: boolean })[];
+  stages: (KanbanStage & { color: string | null; isWon: boolean; isLost: boolean })[];
   deals: DealRow[];
   truncatedAt: number | null;
 }) {
@@ -63,6 +63,7 @@ export function DealsView({
       return {
         ...d,
         stageName: stage?.name ?? "Unknown",
+        stageColor: stage?.color ?? null,
         isWon: stage?.isWon ?? false,
         isLost: stage?.isLost ?? false,
         daysInStage: days,
@@ -226,7 +227,7 @@ export function DealsView({
                     {money(d.value)}
                   </td>
                   <td className="px-3.5 py-2.5 align-middle">
-                    <StagePill value={d.stageName} />
+                    <StagePill value={d.stageName} color={d.stageColor} />
                   </td>
                   <td className="px-3.5 py-2.5 align-middle text-[12px] text-text-muted">
                     {FORECAST[d.stageName] ?? "Pipeline"}

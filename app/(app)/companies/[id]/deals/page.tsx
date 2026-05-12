@@ -12,6 +12,7 @@ export default async function DealsTab({ params }: { params: Promise<{ id: strin
       name: deals.name,
       value: deals.value,
       stageName: stages.name,
+      stageColor: stages.color,
       stageEnteredAt: deals.stageEnteredAt,
       expectedCloseDate: deals.expectedCloseDate,
     })
@@ -50,7 +51,7 @@ export default async function DealsTab({ params }: { params: Promise<{ id: strin
             >
               <td className="px-3 py-2.5 font-medium text-text">{d.name}</td>
               <td className="px-3 py-2.5">
-                <StagePill value={d.stageName} />
+                <StagePill value={d.stageName} color={d.stageColor} />
               </td>
               <td className="px-3 py-2.5 font-mono text-[11px] tabular-nums text-text">
                 {money(d.value)}

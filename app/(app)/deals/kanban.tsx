@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type DragEvent } from "react";
-import { TemperaturePill } from "@/components/pills";
+import { StagePill, TemperaturePill } from "@/components/pills";
 import { money, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { moveDealStageAction } from "./actions";
@@ -22,6 +22,7 @@ export type KanbanDeal = {
 export type KanbanStage = {
   id: string;
   name: string;
+  color?: string | null;
 };
 
 export function KanbanBoard({
@@ -89,7 +90,7 @@ export function KanbanBoard({
             onDrop={(e) => onDrop(e, stage.id)}
           >
             <div className="mb-2 flex items-center justify-between px-1">
-              <span className="text-sm font-medium">{stage.name}</span>
+              <StagePill value={stage.name} color={stage.color} />
               <span className="text-xs text-muted-foreground">
                 {list.length} · {money(total)}
               </span>
