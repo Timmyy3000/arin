@@ -32,10 +32,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-// Unauthenticated GET/DELETE need to emit the OAuth challenge so connector
-// discovery can reach /.well-known/oauth-protected-resource. Authenticated
-// GET/DELETE still return 405 — we don't push notifications and don't track
-// sessions, so the SSE stream would only pin McpServer instances in memory.
+// Unauthed GET/DELETE emit the OAuth challenge for discovery; authed still 405 (leak-fix invariant).
 async function challengeOrNotAllowed(request: Request): Promise<Response> {
   const ctx = await authenticate(request);
   if (!ctx) return unauthorizedResponse();
