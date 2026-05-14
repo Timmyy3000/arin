@@ -2,12 +2,13 @@ import { eq } from "drizzle-orm";
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { db } from "@/db/client";
 import { user } from "@/db/schema/auth";
+import { MCP_AUDIENCE } from "@/lib/auth";
 import type { Actor } from "@/lib/audit";
 import { env } from "@/lib/env";
 import { resolveServiceToken } from "@/lib/service-tokens";
 
 const defaultJwks = createRemoteJWKSet(new URL(`${env.APP_URL}/api/auth/jwks`));
-export const MCP_RESOURCE = `${env.APP_URL}/api/mcp`;
+export const MCP_RESOURCE = MCP_AUDIENCE;
 export const MCP_ISSUER = `${env.APP_URL}/api/auth`;
 
 export type McpAuthContext = { organizationId: string; actor: Actor };
@@ -50,7 +51,7 @@ export async function authenticate(
 
   try {
     const { payload } = await jwtVerify(token, opts.jwks ?? defaultJwks, {
-      audience: MCP_RESOURCE,
+      audience: MCP_AUDIENCE,
       issuer: MCP_ISSUER,
     });
     const orgId = payload.org_id;
