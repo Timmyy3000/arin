@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
 import { createDb } from "@/db/client";
 import { organization } from "@/db/schema/auth";
-import { authenticate, MCP_RESOURCE, unauthorizedResponse } from "@/lib/mcp/auth";
+import {
+  authenticate,
+  MCP_ISSUER,
+  MCP_RESOURCE,
+  unauthorizedResponse,
+} from "@/lib/mcp/auth";
 import { issueServiceToken } from "@/lib/service-tokens";
 import { resetDb } from "./setup";
 
@@ -23,7 +28,7 @@ async function mintJwt(opts: {
     opts.payload ?? { org_id: "org_jwt", sub: "user_1", client_id: "test_client" },
   )
     .setProtectedHeader({ alg: ALG, kid: opts.kid })
-    .setIssuer(opts.issuer ?? APP_URL)
+    .setIssuer(opts.issuer ?? MCP_ISSUER)
     .setAudience(opts.audience ?? MCP_RESOURCE)
     .setIssuedAt()
     .setExpirationTime(exp)

@@ -8,6 +8,7 @@ import { resolveServiceToken } from "@/lib/service-tokens";
 
 const defaultJwks = createRemoteJWKSet(new URL(`${env.APP_URL}/api/auth/jwks`));
 export const MCP_RESOURCE = `${env.APP_URL}/api/mcp`;
+export const MCP_ISSUER = `${env.APP_URL}/api/auth`;
 
 export type McpAuthContext = { organizationId: string; actor: Actor };
 export type AuthenticateOptions = { jwks?: JWTVerifyGetKey };
@@ -50,7 +51,7 @@ export async function authenticate(
   try {
     const { payload } = await jwtVerify(token, opts.jwks ?? defaultJwks, {
       audience: MCP_RESOURCE,
-      issuer: env.APP_URL,
+      issuer: MCP_ISSUER,
     });
     const orgId = payload.org_id;
     if (typeof orgId !== "string" || orgId.length === 0) return null;
