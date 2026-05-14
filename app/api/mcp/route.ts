@@ -32,8 +32,15 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-// Stateless server doesn't push notifications and has no sessions to terminate,
-// so refuse the GET SSE stream and DELETE — both would only allocate without value
-// and GET in particular leaks McpServer instances by holding them open indefinitely.
-export const GET = methodNotAllowed;
-export const DELETE = methodNotAllowed;
+// Unauthenticated GET/DELETE need to emit the OAuth challenge so connector
+// discovery can reach /.well-known/oauth-protected-resource. Authenticated
+// GET/DELETE still return 405 — we don't push notifications and don't track
+// sessions, so the SSE stream would only pin McpServer instances in memory.
+async function challengeOrNotAllowed(request: Request): Promise<Response> {
+  const ctx = await authenticate(request);
+  if (!ctx) return unauthorizedResponse();
+  return methodNotAllowed();
+}
+
+export const GET = challengeOrNotAllowed;
+export const DELETE = challengeOrNotAllowed;
