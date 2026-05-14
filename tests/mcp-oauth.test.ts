@@ -162,3 +162,49 @@ describe("MCP dual-auth", () => {
     expect(await authenticate(bearer(token), { jwks })).toBeNull();
   });
 });
+
+describe("MCP route methods", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  function expectOAuthChallenge(res: Response): void {
+    expect(res.status).toBe(401);
+    const wa = res.headers.get("WWW-Authenticate") ?? "";
+    expect(wa).toContain("Bearer");
+    expect(wa).toContain(
+      `resource_metadata="${APP_URL}/.well-known/oauth-protected-resource"`,
+    );
+  }
+
+  test("GET /api/mcp without a token returns 401 with WWW-Authenticate", async () => {
+    const { GET } = await import("@/app/api/mcp/route");
+    const res = await GET(
+      new Request("http://localhost/api/mcp", { method: "GET" }),
+    );
+    expectOAuthChallenge(res);
+  });
+
+  test("DELETE /api/mcp without a token returns 401 with WWW-Authenticate", async () => {
+    const { DELETE } = await import("@/app/api/mcp/route");
+    const res = await DELETE(
+      new Request("http://localhost/api/mcp", { method: "DELETE" }),
+    );
+    expectOAuthChallenge(res);
+  });
+
+  test("GET /api/mcp with a valid service token returns 405", async () => {
+    const orgId = "org_route";
+    await db.insert(organization).values({ id: orgId, name: "Route", slug: "route" });
+    const issued = await issueServiceToken(db, orgId, "ci-bot");
+    const { GET } = await import("@/app/api/mcp/route");
+    const res = await GET(
+      new Request("http://localhost/api/mcp", {
+        method: "GET",
+        headers: { authorization: `Bearer ${issued.token}` },
+      }),
+    );
+    expect(res.status).toBe(405);
+    expect(res.headers.get("Allow")).toBe("POST");
+  });
+});
