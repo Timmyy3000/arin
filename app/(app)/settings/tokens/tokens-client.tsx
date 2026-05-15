@@ -28,11 +28,13 @@ type TokenRow = {
 };
 
 function CodeBlock({
+  copyKey,
   label,
   value,
   copiedKey,
   onCopy,
 }: {
+  copyKey: string;
   label: string;
   value: string;
   copiedKey: string | null;
@@ -48,9 +50,9 @@ function CodeBlock({
           variant="outline"
           size="xs"
           type="button"
-          onClick={() => onCopy(label, value)}
+          onClick={() => onCopy(copyKey, value)}
         >
-          {copiedKey === label ? (
+          {copiedKey === copyKey ? (
             <>
               <Check className="h-3 w-3" />
               Copied
@@ -186,6 +188,7 @@ function ConnectionGuide({
             ))}
           </div>
           <CodeBlock
+            copyKey="claude-web-values"
             label="Claude Web values"
             value={claudeWebBlock(appUrl)}
             copiedKey={copiedKey}
@@ -202,12 +205,14 @@ function ConnectionGuide({
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <CodeBlock
+              copyKey="claude-code-macos"
               label="macOS / Linux"
               value={claudeCodeMacCommand(appUrl, token)}
               copiedKey={copiedKey}
               onCopy={onCopy}
             />
             <CodeBlock
+              copyKey="claude-code-windows"
               label="Windows PowerShell"
               value={claudeCodeWindowsCommand(appUrl, token)}
               copiedKey={copiedKey}
@@ -225,12 +230,14 @@ function ConnectionGuide({
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <CodeBlock
+              copyKey="codex-macos"
               label="macOS / Linux"
               value={codexMacCommand(appUrl, token)}
               copiedKey={copiedKey}
               onCopy={onCopy}
             />
             <CodeBlock
+              copyKey="codex-windows"
               label="Windows PowerShell"
               value={codexWindowsCommand(appUrl, token)}
               copiedKey={copiedKey}
@@ -247,6 +254,7 @@ function ConnectionGuide({
             </div>
           </div>
           <CodeBlock
+            copyKey="generic-http-config"
             label="HTTP MCP config"
             value={genericHttpConfig(appUrl, token)}
             copiedKey={copiedKey}

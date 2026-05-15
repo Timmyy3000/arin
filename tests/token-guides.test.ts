@@ -40,4 +40,11 @@ describe("token connection guides", () => {
     expect(codexMacCommand(APP_URL)).toContain(SERVICE_TOKEN_PLACEHOLDER);
     expect(genericHttpConfig(APP_URL)).toContain(SERVICE_TOKEN_PLACEHOLDER);
   });
+
+  test("Claude Code and Codex snippets remain distinct even when platform labels match", () => {
+    expect(claudeCodeMacCommand(APP_URL, TOKEN)).not.toBe(codexMacCommand(APP_URL, TOKEN));
+    expect(claudeCodeWindowsCommand(APP_URL, TOKEN)).not.toBe(
+      codexWindowsCommand(APP_URL, TOKEN),
+    );
+  });
 });
