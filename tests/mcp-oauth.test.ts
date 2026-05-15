@@ -163,6 +163,39 @@ describe("MCP dual-auth", () => {
   });
 });
 
+describe("MCP discovery", () => {
+  test("protected resource metadata points Claude at the auth server base path", async () => {
+    const { GET } = await import("@/app/.well-known/oauth-protected-resource/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      resource: `${APP_URL}/api/mcp`,
+      authorization_servers: [`${APP_URL}/api/auth`],
+      bearer_methods_supported: ["header"],
+      scopes_supported: ["mcp"],
+    });
+  });
+
+  test("path-aware auth server metadata route is served under /.well-known/.../api/auth", async () => {
+    const { GET } = await import(
+      "@/app/.well-known/oauth-authorization-server/api/auth/route"
+    );
+    const res = await GET(
+      new Request("http://localhost/.well-known/oauth-authorization-server/api/auth", {
+        method: "GET",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.issuer).toBe(`${APP_URL}/api/auth`);
+    expect(body.jwks_uri).toBe(`${APP_URL}/api/auth/jwks`);
+    expect(body.registration_endpoint).toBe(`${APP_URL}/api/auth/oauth2/register`);
+    expect(body.authorization_endpoint).toBe(
+      `${APP_URL}/api/auth/oauth2/authorize`,
+    );
+    expect(body.token_endpoint).toBe(`${APP_URL}/api/auth/oauth2/token`);
+  });
+});
 describe("MCP route methods", () => {
   beforeEach(async () => {
     await resetDb();
