@@ -194,6 +194,9 @@ describe("MCP discovery", () => {
       `${APP_URL}/api/auth/oauth2/authorize`,
     );
     expect(body.token_endpoint).toBe(`${APP_URL}/api/auth/oauth2/token`);
+    expect(body.scopes_supported).toEqual(
+      expect.arrayContaining(["openid", "profile", "email", "offline_access", "mcp"]),
+    );
   });
 });
 describe("MCP route methods", () => {
