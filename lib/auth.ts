@@ -19,6 +19,7 @@ export const auth = betterAuth({
     organization(),
     jwt(),
     oauthProvider({
+      scopes: ["openid", "profile", "email", "offline_access", "mcp"],
       validAudiences: [MCP_RESOURCE],
       // TODO: rate-limit /api/auth/oauth2/register per IP before relying on this in untrusted environments.
       allowDynamicClientRegistration: true,
