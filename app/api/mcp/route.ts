@@ -32,8 +32,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-// Stateless server doesn't push notifications and has no sessions to terminate,
-// so refuse the GET SSE stream and DELETE — both would only allocate without value
-// and GET in particular leaks McpServer instances by holding them open indefinitely.
-export const GET = methodNotAllowed;
-export const DELETE = methodNotAllowed;
+async function challengeOrNotAllowed(request: Request): Promise<Response> {
+  const ctx = await authenticate(request);
+  if (!ctx) return unauthorizedResponse();
+  return methodNotAllowed();
+}
+
+export const GET = challengeOrNotAllowed;
+export const DELETE = challengeOrNotAllowed;
