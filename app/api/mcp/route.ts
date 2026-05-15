@@ -32,6 +32,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
+// Unauthed GET/DELETE emit the OAuth challenge for discovery; authed still 405 (leak-fix invariant).
 async function challengeOrNotAllowed(request: Request): Promise<Response> {
   const ctx = await authenticate(request);
   if (!ctx) return unauthorizedResponse();

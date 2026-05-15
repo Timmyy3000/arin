@@ -32,7 +32,6 @@ export const auth = betterAuth({
         return orgId ? { org_id: orgId } : {};
       },
       silenceWarnings: {
-        oauthAuthServerConfig: true,
         openidConfig: true,
       },
     }),

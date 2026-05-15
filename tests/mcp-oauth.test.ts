@@ -196,7 +196,6 @@ describe("MCP discovery", () => {
     expect(body.token_endpoint).toBe(`${APP_URL}/api/auth/oauth2/token`);
   });
 });
-
 describe("MCP route methods", () => {
   beforeEach(async () => {
     await resetDb();
