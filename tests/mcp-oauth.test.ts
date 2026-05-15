@@ -198,6 +198,31 @@ describe("MCP discovery", () => {
       expect.arrayContaining(["openid", "profile", "email", "offline_access", "mcp"]),
     );
   });
+
+  test("dynamic client registration allows unauthenticated public clients", async () => {
+    const { POST } = await import("@/app/api/auth/[...all]/route");
+    const res = await (POST as unknown as (
+      request: Request,
+      context: { params: Promise<{ all: string[] }> },
+    ) => Promise<Response>)(
+      new Request("http://localhost/api/auth/oauth2/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:6274/oauth/callback/debug"],
+          grant_types: ["authorization_code", "refresh_token"],
+          response_types: ["code"],
+          token_endpoint_auth_method: "client_secret_post",
+          client_name: "MCP Inspector",
+          client_uri: "https://github.com/modelcontextprotocol/inspector",
+        }),
+      }),
+      { params: Promise.resolve({ all: ["oauth2", "register"] }) },
+    );
+    expect(res.status).not.toBe(401);
+    const body = await res.json();
+    expect(body.client_id).toEqual(expect.any(String));
+  });
 });
 describe("MCP route methods", () => {
   beforeEach(async () => {
